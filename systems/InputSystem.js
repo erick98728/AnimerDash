@@ -10,6 +10,7 @@ export default class InputSystem {
       attack: Phaser.Input.Keyboard.KeyCodes.J,
       dash: Phaser.Input.Keyboard.KeyCodes.K,
       projectile: Phaser.Input.Keyboard.KeyCodes.L,
+      special: Phaser.Input.Keyboard.KeyCodes.I,
       pause: Phaser.Input.Keyboard.KeyCodes.ESC,
     });
 
@@ -22,6 +23,7 @@ export default class InputSystem {
       attack: false,
       dash: false,
       projectile: false,
+      special: false,
     };
   }
 
@@ -56,6 +58,12 @@ export default class InputSystem {
     const keyboardProjectile = Phaser.Input.Keyboard.JustDown(this.keys.projectile);
     const touchProjectile = this.consumeTouchAction('projectile');
     return keyboardProjectile || touchProjectile;
+  }
+
+  wantsSpecial() {
+    const keyboardSpecial = Phaser.Input.Keyboard.JustDown(this.keys.special);
+    const touchSpecial = this.consumeTouchAction('special');
+    return keyboardSpecial || touchSpecial;
   }
 
   // Este método será útil quando botões na tela forem adicionados.
