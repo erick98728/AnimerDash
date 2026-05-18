@@ -15,6 +15,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.maxHealth = GAME_DATA.player.maxHealth;
     this.health = this.maxHealth;
 
+    // Energia usada para shuriken e Orbe do Vento.
+    this.maxEnergy = GAME_DATA.player.maxEnergy;
+    this.energy = this.maxEnergy;
+    this.energyRegenPerSecond = GAME_DATA.player.energyRegenPerSecond;
+
     // Configurações principais de movimento.
     this.speed = GAME_DATA.player.speed;
     this.acceleration = GAME_DATA.player.acceleration;
@@ -31,6 +36,13 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.canDash = true;
     this.isDashing = false;
 
+    // Estado de combate.
+    this.comboIndex = 0;
+    this.lastComboAt = 0;
+    this.canAttack = true;
+    this.canThrowShuriken = true;
+    this.canUseSpecial = true;
+
     this.attackDamage = GAME_DATA.player.attackDamage;
     this.projectileDamage = GAME_DATA.player.projectileDamage;
     this.isDefeated = false;
@@ -44,56 +56,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   static createPlaceholderTextures(scene) {
     const frames = [
-      {
-        key: 'player-idle-placeholder',
-        bodyColor: COLORS.player,
-        accentColor: COLORS.playerAccent,
-        capeColor: COLORS.mist,
-        bodyX: 9,
-        bodyY: 3,
-        bodyW: 30,
-        bodyH: 45,
-      },
-      {
-        key: 'player-run-placeholder',
-        bodyColor: COLORS.player,
-        accentColor: 0xdffaff,
-        capeColor: COLORS.mist,
-        bodyX: 7,
-        bodyY: 3,
-        bodyW: 34,
-        bodyH: 43,
-      },
-      {
-        key: 'player-jump-placeholder',
-        bodyColor: 0x8ff0ff,
-        accentColor: COLORS.playerAccent,
-        capeColor: 0x7053ff,
-        bodyX: 10,
-        bodyY: 1,
-        bodyW: 28,
-        bodyH: 44,
-      },
-      {
-        key: 'player-fall-placeholder',
-        bodyColor: 0x63d8ee,
-        accentColor: COLORS.playerAccent,
-        capeColor: 0x4c35c4,
-        bodyX: 9,
-        bodyY: 6,
-        bodyW: 30,
-        bodyH: 44,
-      },
-      {
-        key: 'player-dash-placeholder',
-        bodyColor: COLORS.playerAccent,
-        accentColor: COLORS.player,
-        capeColor: 0x9d7cff,
-        bodyX: 4,
-        bodyY: 12,
-        bodyW: 42,
-        bodyH: 24,
-      },
+      { key: 'player-idle-placeholder', bodyColor: COLORS.player, accentColor: COLORS.playerAccent, capeColor: COLORS.mist, bodyX: 9, bodyY: 3, bodyW: 30, bodyH: 45 },
+      { key: 'player-run-placeholder', bodyColor: COLORS.player, accentColor: 0xdffaff, capeColor: COLORS.mist, bodyX: 7, bodyY: 3, bodyW: 34, bodyH: 43 },
+      { key: 'player-jump-placeholder', bodyColor: 0x8ff0ff, accentColor: COLORS.playerAccent, capeColor: 0x7053ff, bodyX: 10, bodyY: 1, bodyW: 28, bodyH: 44 },
+      { key: 'player-fall-placeholder', bodyColor: 0x63d8ee, accentColor: COLORS.playerAccent, capeColor: 0x4c35c4, bodyX: 9, bodyY: 6, bodyW: 30, bodyH: 44 },
+      { key: 'player-dash-placeholder', bodyColor: COLORS.playerAccent, accentColor: COLORS.player, capeColor: 0x9d7cff, bodyX: 4, bodyY: 12, bodyW: 42, bodyH: 24 },
     ];
 
     frames.forEach((frame) => {
@@ -138,12 +105,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
       // Cada animação placeholder usa um frame único por enquanto.
       // Quando sprites reais entrarem, basta trocar por spritesheets aqui.
-      scene.anims.create({
-        key,
-        frames: [{ key: textureKey }],
-        frameRate,
-        repeat: -1,
-      });
+      scene.anims.create({ key, frames: [{ key: textureKey }], frameRate, repeat: -1 });
     });
   }
 
@@ -152,6 +114,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     const deltaSeconds = delta / 1000;
     const isOnGround = this.body.blocked.down;
+
+    // Regeneração leve de energia para manter o combate dinâmico.
+    this.energy = Math.min(this.maxEnergy, this.energy + this.energyRegenPerSecond * deltaSeconds);
 
     // Quando toca o chão, o jogador recupera os pulos.
     if (isOnGround) {
@@ -201,12 +166,37 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   handleJump(inputSystem) {
     if (!inputSystem.wantsJump()) return;
-
     if (this.jumpCount >= this.maxJumps) return;
 
     const force = this.jumpCount === 0 ? this.jumpForce : this.doubleJumpForce;
     this.setVelocityY(-force);
     this.jumpCount += 1;
+  }
+
+  getNextComboStep() {
+    const combat = GAME_DATA.player.combat;
+    const now = this.scene.time.now;
+
+    if (now - this.lastComboAt > combat.comboResetTime) {
+      this.comboIndex = 0;
+    }
+
+    const comboStep = combat.comboSteps[this.comboIndex];
+    this.comboIndex = (this.comboIndex + 1) % combat.comboSteps.length;
+    this.lastComboAt = now;
+
+    return comboStep;
+  }
+
+  spendEnergy(amount) {
+    if (this.energy < amount) return false;
+
+    this.energy -= amount;
+    return true;
+  }
+
+  gainEnergy(amount) {
+    this.energy = Math.min(this.maxEnergy, this.energy + amount);
   }
 
   dash() {
