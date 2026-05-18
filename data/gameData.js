@@ -21,6 +21,64 @@ export const GAME_DATA = {
     dashDuration: 165,
     dashCooldown: 620,
 
+    maxEnergy: 100,
+    energyRegenPerSecond: 10,
+
+    combat: {
+      comboResetTime: 520,
+      comboCooldown: 170,
+      comboSteps: [
+        {
+          name: 'Corte Rápido',
+          damage: 16,
+          range: 46,
+          width: 54,
+          height: 34,
+          duration: 105,
+          knockback: 150,
+          energyGain: 6,
+        },
+        {
+          name: 'Corte Cruzado',
+          damage: 22,
+          range: 52,
+          width: 62,
+          height: 38,
+          duration: 120,
+          knockback: 190,
+          energyGain: 8,
+        },
+        {
+          name: 'Corte de Bruma',
+          damage: 32,
+          range: 60,
+          width: 74,
+          height: 44,
+          duration: 140,
+          knockback: 270,
+          energyGain: 12,
+        },
+      ],
+      shuriken: {
+        name: 'Shuriken de Kiro',
+        damage: 14,
+        speed: 520,
+        cooldown: 360,
+        knockback: 110,
+        energyCost: 8,
+      },
+      special: {
+        name: 'Orbe do Vento',
+        damage: 46,
+        speed: 360,
+        cooldown: 1200,
+        knockback: 360,
+        energyCost: 45,
+        radius: 34,
+      },
+    },
+
+    // Mantidos por compatibilidade com sistemas antigos.
     attackDamage: 20,
     projectileDamage: 15,
   },
@@ -47,6 +105,8 @@ export const COLORS = {
   enemy: 0x8f5cff,
   boss: 0xff5c8a,
   projectile: 0xffd166,
+  special: 0x9fffd0,
   collectible: 0xffd166,
+  xp: 0x7be7ff,
   mist: 0x5d3fd3,
 };
