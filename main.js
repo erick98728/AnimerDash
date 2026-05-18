@@ -15,7 +15,8 @@ const config = {
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { y: 900 },
+      // Gravidade um pouco mais forte deixa o pulo com peso e resposta melhor.
+      gravity: { y: 1050 },
       debug: false,
     },
   },
