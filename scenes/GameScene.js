@@ -20,6 +20,7 @@ export default class GameScene extends Phaser.Scene {
     this.inputSystem = new InputSystem(this);
     this.progressionSystem = new ProgressionSystem();
     this.levelCoins = 0;
+    this.levelXp = 0;
     this.isLevelFinished = false;
 
     this.createLevel();
@@ -66,15 +67,27 @@ export default class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.bosses = this.physics.add.group();
 
-    this.enemies.add(new Enemy(this, 520, 370));
-    this.enemies.add(new Enemy(this, 760, 290, { speed: 65, patrolDistance: 90 }));
-    this.enemies.add(new Enemy(this, 1030, 390, { health: 55, damage: 14 }));
+    this.addEnemy(new Enemy(this, 520, 370));
+    this.addEnemy(new Enemy(this, 760, 290, { speed: 65, patrolDistance: 90 }));
+    this.addEnemy(new Enemy(this, 1030, 390, { health: 55, damage: 14 }));
 
     this.boss = new Boss(this, 1450, 430);
-    this.bosses.add(this.boss);
+    this.boss.dropCoins = 6;
+    this.boss.dropXp = 5;
+    this.addEnemy(this.boss, true);
 
     this.physics.add.collider(this.enemies, this.platforms);
     this.physics.add.collider(this.bosses, this.platforms);
+  }
+
+  addEnemy(enemy, isBoss = false) {
+    const group = isBoss ? this.bosses : this.enemies;
+    group.add(enemy);
+
+    // Quando o inimigo morre, ele solta moedas e XP.
+    enemy.on('enemy-defeated', (defeatedEnemy) => {
+      this.dropRewards(defeatedEnemy);
+    });
   }
 
   createCollectibles() {
@@ -92,7 +105,7 @@ export default class GameScene extends Phaser.Scene {
     ];
 
     coinPositions.forEach(([x, y]) => {
-      this.collectibles.add(new Collectible(this, x, y, 1));
+      this.collectibles.add(new Collectible(this, x, y, 1, 'coin'));
     });
   }
 
@@ -103,24 +116,42 @@ export default class GameScene extends Phaser.Scene {
       color: '#f2fbff',
     }).setScrollFactor(0);
 
-    this.coinText = this.add.text(24, 94, '', {
+    this.energyText = this.add.text(24, 94, '', {
+      fontFamily: 'Arial',
+      fontSize: '18px',
+      color: '#7be7ff',
+    }).setScrollFactor(0);
+
+    this.coinText = this.add.text(24, 120, '', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#ffd166',
     }).setScrollFactor(0);
 
-    this.bossText = this.add.text(24, 120, '', {
+    this.bossText = this.add.text(24, 146, '', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#ff8fab',
+    }).setScrollFactor(0);
+
+    this.helpText = this.add.text(24, 504, 'J combo, L shuriken, I Orbe do Vento', {
+      fontFamily: 'Arial',
+      fontSize: '16px',
+      color: '#9bb6c8',
     }).setScrollFactor(0);
   }
 
   createCollisions() {
     this.projectiles = this.physics.add.group();
+    this.meleeHitboxes = this.physics.add.group();
 
     this.physics.add.overlap(this.player, this.collectibles, (_player, collectible) => {
-      this.levelCoins += collectible.value;
+      if (collectible.type === 'xp') {
+        this.levelXp += collectible.value;
+      } else {
+        this.levelCoins += collectible.value;
+      }
+
       collectible.destroy();
     });
 
@@ -132,53 +163,127 @@ export default class GameScene extends Phaser.Scene {
       player.takeDamage(boss.damage);
     });
 
-    this.physics.add.overlap(this.projectiles, this.enemies, (projectile, enemy) => {
-      this.combatSystem.applyDamage(enemy, projectile.damage);
-      projectile.destroy();
-    });
-
-    this.physics.add.overlap(this.projectiles, this.bosses, (projectile, boss) => {
-      this.combatSystem.applyDamage(boss, projectile.damage);
-      projectile.destroy();
-    });
+    this.physics.add.overlap(this.meleeHitboxes, this.enemies, this.handleHitboxOverlap, undefined, this);
+    this.physics.add.overlap(this.meleeHitboxes, this.bosses, this.handleHitboxOverlap, undefined, this);
+    this.physics.add.overlap(this.projectiles, this.enemies, this.handleProjectileOverlap, undefined, this);
+    this.physics.add.overlap(this.projectiles, this.bosses, this.handleProjectileOverlap, undefined, this);
   }
 
   update(time, delta) {
     if (this.isLevelFinished) return;
 
-    // Envia o delta para o Player para aceleração e desaceleração ficarem consistentes.
+    // Envia o delta para o Player para aceleração, desaceleração e energia ficarem consistentes.
     this.player.update(this.inputSystem, delta);
     this.enemies.children.iterate((enemy) => enemy?.update());
     this.bosses.children.iterate((boss) => boss?.update(this.player));
     this.collectibles.children.iterate((collectible) => collectible?.update(time));
 
     if (this.inputSystem.wantsAttack()) {
-      this.handlePlayerAttack();
+      this.handlePlayerComboAttack();
     }
 
     if (this.inputSystem.wantsProjectile()) {
-      this.combatSystem.createProjectile(this.player, this.projectiles, this.player.projectileDamage);
+      this.handlePlayerShuriken();
+    }
+
+    if (this.inputSystem.wantsSpecial()) {
+      this.handlePlayerSpecial();
     }
 
     this.updateHud();
     this.checkLevelState();
   }
 
-  handlePlayerAttack() {
-    const hitbox = this.combatSystem.createMeleeHitbox(this.player, this.player.attackDamage);
+  handlePlayerComboAttack() {
+    const combatConfig = GAME_DATA.player.combat;
+    if (!this.player.canAttack) return;
 
-    this.physics.add.overlap(hitbox, this.enemies, (box, enemy) => {
-      this.combatSystem.applyDamage(enemy, box.damage);
-    });
+    this.player.canAttack = false;
+    const comboStep = this.player.getNextComboStep();
+    const hitbox = this.combatSystem.createComboHitbox(this.player, comboStep);
+    this.meleeHitboxes.add(hitbox);
 
-    this.physics.add.overlap(hitbox, this.bosses, (box, boss) => {
-      this.combatSystem.applyDamage(boss, box.damage);
+    this.time.delayedCall(combatConfig.comboCooldown, () => {
+      this.player.canAttack = true;
     });
+  }
+
+  handlePlayerShuriken() {
+    const config = GAME_DATA.player.combat.shuriken;
+
+    if (!this.player.canThrowShuriken) return;
+    if (!this.player.spendEnergy(config.energyCost)) return;
+
+    this.player.canThrowShuriken = false;
+    this.combatSystem.createShuriken(this.player, this.projectiles);
+
+    this.time.delayedCall(config.cooldown, () => {
+      this.player.canThrowShuriken = true;
+    });
+  }
+
+  handlePlayerSpecial() {
+    const config = GAME_DATA.player.combat.special;
+
+    if (!this.player.canUseSpecial) return;
+    if (!this.player.spendEnergy(config.energyCost)) return;
+
+    this.player.canUseSpecial = false;
+    this.combatSystem.createWindOrb(this.player, this.projectiles);
+    this.cameras.main.shake(120, 0.0035);
+
+    this.time.delayedCall(config.cooldown, () => {
+      this.player.canUseSpecial = true;
+    });
+  }
+
+  handleHitboxOverlap(hitbox, enemy) {
+    if (!hitbox.active || !enemy.active || enemy.isDefeated) return;
+    if (hitbox.alreadyHit.has(enemy)) return;
+
+    hitbox.alreadyHit.add(enemy);
+    this.combatSystem.applyDamage(enemy, hitbox.damage, hitbox);
+    hitbox.owner?.gainEnergy?.(GAME_DATA.player.combat.comboSteps[0].energyGain ?? 5);
+  }
+
+  handleProjectileOverlap(projectile, enemy) {
+    if (!projectile.active || !enemy.active || enemy.isDefeated) return;
+
+    this.combatSystem.applyDamage(enemy, projectile.damage, projectile);
+
+    if (!projectile.pierce) {
+      projectile.destroy();
+    }
+  }
+
+  dropRewards(enemy) {
+    for (let i = 0; i < enemy.dropCoins; i += 1) {
+      const coin = new Collectible(
+        this,
+        enemy.x + Phaser.Math.Between(-22, 22),
+        enemy.y + Phaser.Math.Between(-20, 10),
+        1,
+        'coin',
+      );
+      this.collectibles.add(coin);
+    }
+
+    for (let i = 0; i < enemy.dropXp; i += 1) {
+      const xp = new Collectible(
+        this,
+        enemy.x + Phaser.Math.Between(-18, 18),
+        enemy.y + Phaser.Math.Between(-26, 0),
+        1,
+        'xp',
+      );
+      this.collectibles.add(xp);
+    }
   }
 
   updateHud() {
     this.healthText.setText(`Vida: ${this.player.health}/${this.player.maxHealth}`);
-    this.coinText.setText(`Moedas da fase: ${this.levelCoins}/${GAME_DATA.level.targetCoins}`);
+    this.energyText.setText(`Energia: ${Math.floor(this.player.energy)}/${this.player.maxEnergy}`);
+    this.coinText.setText(`Moedas: ${this.levelCoins}/${GAME_DATA.level.targetCoins} | XP: ${this.levelXp}`);
     this.bossText.setText(this.boss?.active ? `Chefe: ${this.boss.health}/${this.boss.maxHealth}` : 'Chefe derrotado');
   }
 
