@@ -3,9 +3,24 @@ export const GAME_DATA = {
   player: {
     name: 'Ren Kiro',
     maxHealth: 100,
-    speed: 230,
-    jumpForce: 470,
-    dashSpeed: 520,
+
+    // Velocidade máxima horizontal do personagem.
+    speed: 260,
+
+    // Aceleração e desaceleração deixam o movimento mais fluido e responsivo.
+    acceleration: 1650,
+    deceleration: 2100,
+
+    // Pulo principal e pulo duplo. O segundo pulo é um pouco menor para parecer natural.
+    jumpForce: 500,
+    doubleJumpForce: 455,
+    maxJumps: 2,
+
+    // Dash curto, rápido e com cooldown para não ficar apelativo.
+    dashSpeed: 620,
+    dashDuration: 165,
+    dashCooldown: 620,
+
     attackDamage: 20,
     projectileDamage: 15,
   },
