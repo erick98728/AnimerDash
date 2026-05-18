@@ -30,7 +30,7 @@ export default class GameScene extends Phaser.Scene {
     this.createCollisions();
 
     this.cameras.main.setBounds(0, 0, 1600, 540);
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
   }
 
   createLevel() {
@@ -143,10 +143,11 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  update(time) {
+  update(time, delta) {
     if (this.isLevelFinished) return;
 
-    this.player.update(this.inputSystem);
+    // Envia o delta para o Player para aceleração e desaceleração ficarem consistentes.
+    this.player.update(this.inputSystem, delta);
     this.enemies.children.iterate((enemy) => enemy?.update());
     this.bosses.children.iterate((boss) => boss?.update(this.player));
     this.collectibles.children.iterate((collectible) => collectible?.update(time));
