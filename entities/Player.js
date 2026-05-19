@@ -1,4 +1,5 @@
 import { COLORS, GAME_DATA } from '../data/gameData.js';
+import { AUDIO_KEYS } from '../systems/AudioSystem.js';
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
@@ -171,6 +172,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const force = this.jumpCount === 0 ? this.jumpForce : this.doubleJumpForce;
     this.setVelocityY(-force);
     this.jumpCount += 1;
+    this.scene.audioSystem?.playSfx(AUDIO_KEYS.sfx.jump);
   }
 
   getNextComboStep() {
@@ -205,6 +207,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.canDash = false;
     this.isDashing = true;
     this.isInvulnerable = true;
+    this.scene.audioSystem?.playSfx(AUDIO_KEYS.sfx.dash);
 
     // Durante o dash, a gravidade é pausada por um instante para dar sensação de corte rápido.
     this.body.allowGravity = false;
@@ -255,6 +258,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.health = Math.max(0, this.health - amount);
     this.isInvulnerable = true;
     this.setTint(0xff6b6b);
+    this.scene.audioSystem?.playSfx(AUDIO_KEYS.sfx.damage);
 
     this.scene.time.delayedCall(450, () => {
       this.isInvulnerable = false;
