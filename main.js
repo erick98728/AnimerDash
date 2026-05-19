@@ -13,6 +13,9 @@ const config = {
   height: 540,
   backgroundColor: '#07111f',
   pixelArt: true,
+  input: {
+    activePointers: 8,
+  },
   physics: {
     default: 'arcade',
     arcade: {
@@ -24,6 +27,16 @@ const config = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 960,
+    height: 540,
+    min: {
+      width: 320,
+      height: 180,
+    },
+    max: {
+      width: 1920,
+      height: 1080,
+    },
   },
   scene: [
     BootScene,
