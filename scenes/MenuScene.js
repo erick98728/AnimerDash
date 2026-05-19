@@ -13,39 +13,44 @@ export default class MenuScene extends Phaser.Scene {
 
     this.add.image(480, 270, 'mist-bg-placeholder');
 
-    this.add.text(480, 90, GAME_DATA.title, {
+    this.add.text(480, 80, GAME_DATA.title, {
       fontFamily: 'Arial',
       fontSize: '58px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(480, 150, 'Ação ninja 2D original', {
+    this.add.text(480, 138, 'Ação ninja 2D original', {
       fontFamily: 'Arial',
       fontSize: '22px',
       color: '#9bb6c8',
     }).setOrigin(0.5);
 
-    this.add.text(480, 188, `Sequência de login: ${loginInfo.streak}/7`, {
+    this.add.text(480, 174, `Sequência de login: ${loginInfo.streak}/7`, {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#ffd166',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.createButton(480, 250, 'Selecionar fase', () => {
+    this.createButton(480, 238, 'Selecionar fase', () => {
       this.scene.start('LevelSelectScene');
     });
 
-    this.createButton(480, 312, 'Melhorias', () => {
+    this.createButton(480, 296, 'Melhorias', () => {
       this.scene.start('UpgradeScene');
     });
 
-    this.createButton(480, 374, 'Missões e recompensas', () => {
+    this.createButton(480, 354, 'Missões e recompensas', () => {
       this.scene.start('RetentionScene');
     });
 
-    this.add.text(480, 462, 'WASD ou setas, Espaço pula, J ataca, K esquiva, L shuriken, I especial', {
+    this.createButton(480, 412, 'Configurações', () => {
+      this.scene.launch('SettingsScene', { returnScene: 'MenuScene' });
+      this.scene.bringToTop('SettingsScene');
+    });
+
+    this.add.text(480, 476, 'WASD ou setas, Espaço pula, J ataca, K esquiva, L shuriken, I especial', {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#7be7ff',
