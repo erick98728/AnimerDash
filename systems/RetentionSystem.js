@@ -10,7 +10,6 @@ import {
 
 export default class RetentionSystem {
   constructor() {
-    this.progressionSystem = new ProgressionSystem();
     this.save = SaveSystem.load();
     this.ensureToday();
   }
@@ -27,44 +26,54 @@ export default class RetentionSystem {
     return Math.round((current - previous) / 86400000);
   }
 
-  ensureToday() {
-    const today = this.getTodayKey();
-    const retention = this.save.retention;
-
-    if (retention.dailyStatsDate !== today) {
-      retention.dailyStatsDate = today;
-      retention.dailyStats = {
-        enemiesDefeated: 0,
-        coinsCollected: 0,
-        levelsCompleted: 0,
-        noDeathCompletions: 0,
-        specialUses: 0,
-        bossesDefeated: 0,
-      };
-      retention.claimedDailyMissions = {};
-    }
-
-    if (retention.lastLoginDate !== today) {
-      const diff = this.getDateDiffInDays(retention.lastLoginDate, today);
-
-      if (diff === 1) {
-        retention.loginStreak += 1;
-      } else if (diff === null) {
-        retention.loginStreak = 1;
-      } else if (diff > 1) {
-        retention.loginStreak = 1;
-      }
-
-      retention.lastLoginDate = today;
-      retention.bestLoginStreak = Math.max(retention.bestLoginStreak, retention.loginStreak);
-    }
-
-    this.persist();
+  reload() {
+    this.save = SaveSystem.load();
+    return this.save;
   }
 
-  persist() {
-    this.save = SaveSystem.save(this.save);
+  updateSave(updater, { applyLevel = false } = {}) {
+    this.save = SaveSystem.update((save) => {
+      updater(save);
+      return applyLevel ? ProgressionSystem.applyLevelFromXp(save) : save;
+    });
+
     return this.save;
+  }
+
+  ensureToday() {
+    const today = this.getTodayKey();
+
+    this.updateSave((save) => {
+      const retention = save.retention;
+
+      if (retention.dailyStatsDate !== today) {
+        retention.dailyStatsDate = today;
+        retention.dailyStats = {
+          enemiesDefeated: 0,
+          coinsCollected: 0,
+          levelsCompleted: 0,
+          noDeathCompletions: 0,
+          specialUses: 0,
+          bossesDefeated: 0,
+        };
+        retention.claimedDailyMissions = {};
+      }
+
+      if (retention.lastLoginDate !== today) {
+        const diff = this.getDateDiffInDays(retention.lastLoginDate, today);
+
+        if (diff === 1) {
+          retention.loginStreak += 1;
+        } else if (diff === null) {
+          retention.loginStreak = 1;
+        } else if (diff > 1) {
+          retention.loginStreak = 1;
+        }
+
+        retention.lastLoginDate = today;
+        retention.bestLoginStreak = Math.max(retention.bestLoginStreak, retention.loginStreak);
+      }
+    });
   }
 
   getState() {
@@ -73,12 +82,9 @@ export default class RetentionSystem {
   }
 
   addReward(reward) {
-    this.save.coins += reward.coins ?? 0;
-    this.save.xp += reward.xp ?? 0;
-    this.save.rareScrolls += reward.rareScrolls ?? 0;
-    this.persist();
-    this.progressionSystem.refreshLevelFromXp();
-    this.save = SaveSystem.load();
+    this.updateSave((save) => {
+      ProgressionSystem.addRewardToSave(save, reward);
+    }, { applyLevel: true });
   }
 
   getLoginRewardInfo() {
@@ -100,9 +106,11 @@ export default class RetentionSystem {
 
     if (!info.canClaim) return false;
 
-    this.addReward(info.reward);
-    this.save.retention.claimedLoginRewardDate = today;
-    this.persist();
+    this.updateSave((save) => {
+      ProgressionSystem.addRewardToSave(save, info.reward);
+      save.retention.claimedLoginRewardDate = today;
+    }, { applyLevel: true });
+
     return true;
   }
 
@@ -113,10 +121,13 @@ export default class RetentionSystem {
 
   claimDailyChest() {
     if (!this.canClaimDailyChest()) return false;
+    const today = this.getTodayKey();
 
-    this.addReward(DAILY_CHEST_REWARD);
-    this.save.retention.claimedDailyChestDate = this.getTodayKey();
-    this.persist();
+    this.updateSave((save) => {
+      ProgressionSystem.addRewardToSave(save, DAILY_CHEST_REWARD);
+      save.retention.claimedDailyChestDate = today;
+    }, { applyLevel: true });
+
     return true;
   }
 
@@ -130,26 +141,29 @@ export default class RetentionSystem {
 
   claimThreeLevelsBonus() {
     if (!this.canClaimThreeLevelsBonus()) return false;
+    const today = this.getTodayKey();
 
-    this.addReward(THREE_LEVELS_BONUS);
-    this.save.retention.claimedThreeLevelsBonusDate = this.getTodayKey();
-    this.persist();
+    this.updateSave((save) => {
+      ProgressionSystem.addRewardToSave(save, THREE_LEVELS_BONUS);
+      save.retention.claimedThreeLevelsBonusDate = today;
+    }, { applyLevel: true });
+
     return true;
   }
 
   addProgress(stat, amount = 1) {
     this.ensureToday();
 
-    if (Object.prototype.hasOwnProperty.call(this.save.retention.dailyStats, stat)) {
-      this.save.retention.dailyStats[stat] += amount;
-    }
+    this.updateSave((save) => {
+      if (Object.prototype.hasOwnProperty.call(save.retention.dailyStats, stat)) {
+        save.retention.dailyStats[stat] += amount;
+      }
 
-    const lifetimeStat = `lifetime${stat.charAt(0).toUpperCase()}${stat.slice(1)}`;
-    if (Object.prototype.hasOwnProperty.call(this.save.retention.lifetimeStats, lifetimeStat)) {
-      this.save.retention.lifetimeStats[lifetimeStat] += amount;
-    }
-
-    this.persist();
+      const lifetimeStat = `lifetime${stat.charAt(0).toUpperCase()}${stat.slice(1)}`;
+      if (Object.prototype.hasOwnProperty.call(save.retention.lifetimeStats, lifetimeStat)) {
+        save.retention.lifetimeStats[lifetimeStat] += amount;
+      }
+    });
   }
 
   recordEnemyDefeated(amount = 1) {
@@ -177,6 +191,7 @@ export default class RetentionSystem {
   }
 
   getDailyMissionProgress(mission) {
+    this.reload();
     const current = this.save.retention.dailyStats[mission.stat] ?? 0;
     return {
       current,
@@ -202,13 +217,17 @@ export default class RetentionSystem {
     const progress = this.getDailyMissionProgress(mission);
     if (!progress.completed || progress.claimed) return false;
 
-    this.addReward(mission.reward);
-    this.save.retention.claimedDailyMissions[mission.id] = this.getTodayKey();
-    this.persist();
+    const today = this.getTodayKey();
+    this.updateSave((save) => {
+      ProgressionSystem.addRewardToSave(save, mission.reward);
+      save.retention.claimedDailyMissions[mission.id] = today;
+    }, { applyLevel: true });
+
     return true;
   }
 
   getAchievementProgress(achievement) {
+    this.reload();
     const lifetimeValue = this.save.retention.lifetimeStats[achievement.stat] ?? this.save.retention[achievement.stat] ?? 0;
     return {
       current: lifetimeValue,
@@ -234,9 +253,12 @@ export default class RetentionSystem {
     const progress = this.getAchievementProgress(achievement);
     if (!progress.completed || progress.claimed) return false;
 
-    this.addReward(achievement.reward);
-    this.save.retention.claimedAchievements[achievement.id] = this.getTodayKey();
-    this.persist();
+    const today = this.getTodayKey();
+    this.updateSave((save) => {
+      ProgressionSystem.addRewardToSave(save, achievement.reward);
+      save.retention.claimedAchievements[achievement.id] = today;
+    }, { applyLevel: true });
+
     return true;
   }
 }
