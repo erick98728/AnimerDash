@@ -3,7 +3,7 @@ export default class SaveSystem {
 
   static getDefaultSave() {
     return {
-      version: 5,
+      version: 6,
       playerLevel: 1,
       xp: 0,
       coins: 0,
@@ -25,6 +25,7 @@ export default class SaveSystem {
         sfxVolume: 0.8,
         showTouchControls: true,
         touchControlsOpacity: 0.72,
+        hideMobileGameplayHelp: true,
       },
       retention: {
         lastLoginDate: null,
@@ -57,6 +58,12 @@ export default class SaveSystem {
     };
   }
 
+  static clampNumber(value, min, max, fallback) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return fallback;
+    return Math.min(Math.max(numericValue, min), max);
+  }
+
   static normalizeSave(data) {
     const defaultSave = SaveSystem.getDefaultSave();
     const loaded = data ?? {};
@@ -82,13 +89,16 @@ export default class SaveSystem {
       settings: {
         ...defaultSave.settings,
         ...loadedSettings,
-        musicVolume: Phaser?.Math?.Clamp?.(Number(loadedSettings.musicVolume ?? defaultSave.settings.musicVolume), 0, 1)
-          ?? defaultSave.settings.musicVolume,
-        sfxVolume: Phaser?.Math?.Clamp?.(Number(loadedSettings.sfxVolume ?? defaultSave.settings.sfxVolume), 0, 1)
-          ?? defaultSave.settings.sfxVolume,
+        musicVolume: SaveSystem.clampNumber(loadedSettings.musicVolume, 0, 1, defaultSave.settings.musicVolume),
+        sfxVolume: SaveSystem.clampNumber(loadedSettings.sfxVolume, 0, 1, defaultSave.settings.sfxVolume),
         showTouchControls: loadedSettings.showTouchControls ?? defaultSave.settings.showTouchControls,
-        touchControlsOpacity: Phaser?.Math?.Clamp?.(Number(loadedSettings.touchControlsOpacity ?? defaultSave.settings.touchControlsOpacity), 0.25, 1)
-          ?? defaultSave.settings.touchControlsOpacity,
+        touchControlsOpacity: SaveSystem.clampNumber(
+          loadedSettings.touchControlsOpacity,
+          0.25,
+          1,
+          defaultSave.settings.touchControlsOpacity,
+        ),
+        hideMobileGameplayHelp: loadedSettings.hideMobileGameplayHelp ?? defaultSave.settings.hideMobileGameplayHelp,
       },
       completedLevels: Array.isArray(loaded.completedLevels) ? loaded.completedLevels : defaultSave.completedLevels,
       unlockedSkills: Array.isArray(loaded.unlockedSkills) ? loaded.unlockedSkills : defaultSave.unlockedSkills,
