@@ -1,4 +1,5 @@
 import { GAME_DATA } from '../data/gameData.js';
+import AudioSystem, { AUDIO_KEYS } from '../systems/AudioSystem.js';
 import RetentionSystem from '../systems/RetentionSystem.js';
 
 export default class MenuScene extends Phaser.Scene {
@@ -9,6 +10,8 @@ export default class MenuScene extends Phaser.Scene {
   create() {
     // Inicializa retenção no menu para atualizar sequência de login automaticamente.
     this.retentionSystem = new RetentionSystem();
+    this.audioSystem = new AudioSystem(this);
+    this.audioSystem.playMusic(AUDIO_KEYS.music.menu);
     const loginInfo = this.retentionSystem.getLoginRewardInfo();
 
     this.add.image(480, 270, 'mist-bg-placeholder');
@@ -34,14 +37,17 @@ export default class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.createButton(480, 238, 'Selecionar fase', () => {
+      this.audioSystem.stopMusic();
       this.scene.start('LevelSelectScene');
     });
 
     this.createButton(480, 296, 'Melhorias', () => {
+      this.audioSystem.stopMusic();
       this.scene.start('UpgradeScene');
     });
 
     this.createButton(480, 354, 'Missões e recompensas', () => {
+      this.audioSystem.stopMusic();
       this.scene.start('RetentionScene');
     });
 
@@ -55,6 +61,10 @@ export default class MenuScene extends Phaser.Scene {
       fontSize: '16px',
       color: '#7be7ff',
     }).setOrigin(0.5);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.audioSystem?.stopMusic();
+    });
   }
 
   createButton(x, y, label, callback) {
@@ -71,7 +81,10 @@ export default class MenuScene extends Phaser.Scene {
 
     button.on('pointerover', () => button.setFillStyle(0x24506f));
     button.on('pointerout', () => button.setFillStyle(0x18324a));
-    button.on('pointerdown', callback);
+    button.on('pointerdown', () => {
+      this.audioSystem?.unlock();
+      callback();
+    });
 
     return { button, text };
   }
