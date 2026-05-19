@@ -4,6 +4,7 @@ import Boss from '../entities/Boss.js';
 import Projectile from '../entities/Projectile.js';
 import EnemyProjectile from '../entities/EnemyProjectile.js';
 import Collectible from '../entities/Collectible.js';
+import AudioSystem from '../systems/AudioSystem.js';
 import { COLORS } from '../data/gameData.js';
 
 export default class BootScene extends Phaser.Scene {
@@ -14,6 +15,7 @@ export default class BootScene extends Phaser.Scene {
   preload() {
     // Futuramente, sprites reais devem ser carregados aqui.
     // Exemplo: this.load.image('ren-idle', './assets/sprites/ren-idle.png');
+    AudioSystem.preload(this);
   }
 
   create() {
