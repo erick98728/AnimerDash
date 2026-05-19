@@ -3,7 +3,7 @@ export default class SaveSystem {
 
   static getDefaultSave() {
     return {
-      version: 4,
+      version: 5,
       playerLevel: 1,
       xp: 0,
       coins: 0,
@@ -19,6 +19,12 @@ export default class SaveSystem {
         energy: 0,
         dash: 0,
         shuriken: 0,
+      },
+      settings: {
+        musicVolume: 0.7,
+        sfxVolume: 0.8,
+        showTouchControls: true,
+        touchControlsOpacity: 0.72,
       },
       retention: {
         lastLoginDate: null,
@@ -55,6 +61,7 @@ export default class SaveSystem {
     const defaultSave = SaveSystem.getDefaultSave();
     const loaded = data ?? {};
     const loadedRetention = loaded.retention ?? {};
+    const loadedSettings = loaded.settings ?? {};
 
     return {
       ...defaultSave,
@@ -71,6 +78,17 @@ export default class SaveSystem {
       upgrades: {
         ...defaultSave.upgrades,
         ...(loaded.upgrades ?? {}),
+      },
+      settings: {
+        ...defaultSave.settings,
+        ...loadedSettings,
+        musicVolume: Phaser?.Math?.Clamp?.(Number(loadedSettings.musicVolume ?? defaultSave.settings.musicVolume), 0, 1)
+          ?? defaultSave.settings.musicVolume,
+        sfxVolume: Phaser?.Math?.Clamp?.(Number(loadedSettings.sfxVolume ?? defaultSave.settings.sfxVolume), 0, 1)
+          ?? defaultSave.settings.sfxVolume,
+        showTouchControls: loadedSettings.showTouchControls ?? defaultSave.settings.showTouchControls,
+        touchControlsOpacity: Phaser?.Math?.Clamp?.(Number(loadedSettings.touchControlsOpacity ?? defaultSave.settings.touchControlsOpacity), 0.25, 1)
+          ?? defaultSave.settings.touchControlsOpacity,
       },
       completedLevels: Array.isArray(loaded.completedLevels) ? loaded.completedLevels : defaultSave.completedLevels,
       unlockedSkills: Array.isArray(loaded.unlockedSkills) ? loaded.unlockedSkills : defaultSave.unlockedSkills,
@@ -120,6 +138,20 @@ export default class SaveSystem {
     const currentSave = SaveSystem.load();
     const result = updater(currentSave) ?? currentSave;
     return SaveSystem.save(result);
+  }
+
+  static getSettings() {
+    return SaveSystem.load().settings;
+  }
+
+  static updateSettings(nextSettings) {
+    return SaveSystem.update((save) => {
+      save.settings = {
+        ...save.settings,
+        ...nextSettings,
+      };
+      return save;
+    }).settings;
   }
 
   static reset() {
