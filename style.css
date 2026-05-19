@@ -12,6 +12,13 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 body {
@@ -26,10 +33,11 @@ body {
 
 .page-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
 }
 
 .game-wrapper {
@@ -69,18 +77,40 @@ h1 {
   text-align: right;
 }
 
+.orientation-warning {
+  display: none;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 209, 102, 0.38);
+  border-radius: 14px;
+  background: rgba(255, 209, 102, 0.1);
+  color: var(--gold);
+  text-align: center;
+}
+
+.orientation-warning span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 #game-container {
   width: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   background: #02050a;
+  aspect-ratio: 16 / 9;
 }
 
 #game-container canvas {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  image-rendering: pixelated;
+  touch-action: none;
+  user-select: none;
 }
 
 .controls-help {
@@ -96,22 +126,45 @@ h1 {
   color: var(--gold);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
+  body {
+    overflow: hidden;
+  }
+
   .page-shell {
-    padding: 10px;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 
   .game-wrapper {
-    padding: 12px;
-    border-radius: 18px;
-  }
-
-  .game-header {
-    align-items: flex-start;
+    width: 100vw;
+    min-height: 100dvh;
+    display: flex;
     flex-direction: column;
+    justify-content: center;
+    padding: 8px;
+    border: 0;
+    border-radius: 0;
+    background: rgba(7, 17, 31, 0.96);
   }
 
-  .game-subtitle {
-    text-align: left;
+  .game-header,
+  .controls-help {
+    display: none;
+  }
+
+  #game-container {
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 10px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .orientation-warning {
+    display: block;
+  }
+
+  #game-container {
+    opacity: 0.45;
   }
 }
