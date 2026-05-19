@@ -14,7 +14,7 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     this.add.image(480, 270, 'mist-bg-placeholder');
-    this.physics.world.setBounds(0, 0, 1600, 540);
+    this.physics.world.setBounds(0, 0, 1700, 540);
 
     this.combatSystem = new CombatSystem(this);
     this.inputSystem = new InputSystem(this);
@@ -22,15 +22,17 @@ export default class GameScene extends Phaser.Scene {
     this.levelCoins = 0;
     this.levelXp = 0;
     this.isLevelFinished = false;
+    this.bossRewardApplied = false;
 
     this.createLevel();
     this.createPlayer();
     this.createEnemies();
     this.createCollectibles();
     this.createHud();
+    this.createBossHud();
     this.createCollisions();
 
-    this.cameras.main.setBounds(0, 0, 1600, 540);
+    this.cameras.main.setBounds(0, 0, 1700, 540);
     this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
   }
 
@@ -42,8 +44,7 @@ export default class GameScene extends Phaser.Scene {
       { x: 470, y: 430, scaleX: 1.2 },
       { x: 720, y: 350, scaleX: 1.1 },
       { x: 980, y: 450, scaleX: 1.4 },
-      { x: 1260, y: 370, scaleX: 1.2 },
-      { x: 1460, y: 510, scaleX: 2.0 },
+      { x: 1310, y: 510, scaleX: 3.6 },
     ];
 
     platformData.forEach((platform) => {
@@ -51,11 +52,28 @@ export default class GameScene extends Phaser.Scene {
       sprite.setScale(platform.scaleX, 1).refreshBody();
     });
 
-    this.add.text(34, 34, GAME_DATA.level.name, {
+    this.createBossArena();
+
+    this.add.text(34, 34, `${GAME_DATA.level.name} - Arena de Kaizen`, {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#9bb6c8',
     }).setScrollFactor(0);
+  }
+
+  createBossArena() {
+    const { left, right } = GAME_DATA.boss.arena;
+
+    this.add.rectangle((left + right) / 2, 500, right - left, 10, 0x7be7ff, 0.12);
+    this.add.rectangle(left, 440, 10, 140, 0x5d3fd3, 0.35);
+    this.add.rectangle(right, 440, 10, 140, 0x5d3fd3, 0.35);
+
+    this.add.text((left + right) / 2, 392, 'Arena do Guardião da Névoa', {
+      fontFamily: 'Arial',
+      fontSize: '18px',
+      color: '#b9a7ff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
   }
 
   createPlayer() {
@@ -68,16 +86,12 @@ export default class GameScene extends Phaser.Scene {
     this.bosses = this.physics.add.group();
     this.enemyProjectiles = this.physics.add.group();
 
-    // Quatro tipos de inimigos do MVP.
+    // Guardas antes da arena para aquecer o jogador sem cansar a fase.
     this.addEnemy(new Enemy(this, 410, 450, 'weakNinja'));
     this.addEnemy(new Enemy(this, 650, 370, 'kunaiShooter'));
-    this.addEnemy(new Enemy(this, 930, 390, 'heavyGuardian'));
-    this.addEnemy(new Enemy(this, 1190, 310, 'shadowNinja'));
+    this.addEnemy(new Enemy(this, 930, 390, 'shadowNinja'));
 
-    // Boss mantido como desafio final da fase.
-    this.boss = new Boss(this, 1450, 430);
-    this.boss.dropCoins = 6;
-    this.boss.dropXp = 5;
+    this.boss = new Boss(this, 1340, 430);
     this.addEnemy(this.boss, true);
 
     this.physics.add.collider(this.enemies, this.platforms);
@@ -88,9 +102,41 @@ export default class GameScene extends Phaser.Scene {
     const group = isBoss ? this.bosses : this.enemies;
     group.add(enemy);
 
-    // Quando o inimigo morre, ele solta moedas e XP.
     enemy.on('enemy-defeated', (defeatedEnemy) => {
       this.dropRewards(defeatedEnemy);
+    });
+
+    if (isBoss) {
+      enemy.on('boss-defeated', (boss) => {
+        this.handleBossDefeated(boss);
+      });
+    }
+  }
+
+  spawnBossMinion(x, y) {
+    const minion = new Enemy(this, x, y, 'weakNinja', {
+      health: 28,
+      damage: 8,
+      speed: 120,
+      dropCoins: 1,
+      dropXp: 1,
+    });
+
+    this.addEnemy(minion);
+    this.physics.add.collider(minion, this.platforms);
+    this.createSummonEffect(x, y);
+  }
+
+  createSummonEffect(x, y) {
+    const effect = this.add.circle(x, y, 26, 0xb9a7ff, 0.45);
+    effect.setBlendMode(Phaser.BlendModes.ADD);
+
+    this.tweens.add({
+      targets: effect,
+      alpha: 0,
+      scale: 2,
+      duration: 360,
+      onComplete: () => effect.destroy(),
     });
   }
 
@@ -102,10 +148,9 @@ export default class GameScene extends Phaser.Scene {
       [470, 380],
       [720, 300],
       [980, 400],
-      [1120, 390],
-      [1260, 320],
-      [1370, 450],
-      [1510, 455],
+      [1160, 455],
+      [1420, 455],
+      [1530, 455],
     ];
 
     coinPositions.forEach(([x, y]) => {
@@ -132,17 +177,34 @@ export default class GameScene extends Phaser.Scene {
       color: '#ffd166',
     }).setScrollFactor(0);
 
-    this.bossText = this.add.text(24, 146, '', {
-      fontFamily: 'Arial',
-      fontSize: '18px',
-      color: '#ff8fab',
-    }).setScrollFactor(0);
-
     this.helpText = this.add.text(24, 504, 'J combo, L shuriken, I Orbe do Vento', {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#9bb6c8',
     }).setScrollFactor(0);
+  }
+
+  createBossHud() {
+    this.bossNameText = this.add.text(480, 18, GAME_DATA.boss.name, {
+      fontFamily: 'Arial',
+      fontSize: '18px',
+      color: '#f2fbff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0);
+
+    this.bossBarBack = this.add.rectangle(480, 44, 560, 18, 0x200814, 0.95)
+      .setStrokeStyle(2, 0xb9a7ff)
+      .setScrollFactor(0);
+
+    this.bossBarFill = this.add.rectangle(200, 44, 560, 14, 0xff5c8a, 0.95)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0);
+
+    this.bossPhaseText = this.add.text(480, 66, '', {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#b9a7ff',
+    }).setOrigin(0.5).setScrollFactor(0);
   }
 
   createCollisions() {
@@ -159,14 +221,12 @@ export default class GameScene extends Phaser.Scene {
       collectible.destroy();
     });
 
-    // Colisão corporal com inimigos. O dano principal de ataque dos inimigos fica no comportamento deles,
-    // mas o contato ainda causa dano leve para evitar atravessar inimigos sem risco.
     this.physics.add.overlap(this.player, this.enemies, (player, enemy) => {
       player.takeDamage(Math.ceil(enemy.damage * 0.45));
     });
 
     this.physics.add.overlap(this.player, this.bosses, (player, boss) => {
-      player.takeDamage(boss.damage);
+      player.takeDamage(Math.ceil(boss.damage * 0.55));
     });
 
     this.physics.add.overlap(this.player, this.enemyProjectiles, (player, projectile) => {
@@ -183,12 +243,13 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (this.isLevelFinished) return;
 
-    // Envia o delta para o Player para aceleração, desaceleração e energia ficarem consistentes.
     this.player.update(this.inputSystem, delta);
 
-    // Inimigos comuns recebem player e grupo de projéteis para controlar IA e ataques.
     this.enemies.children.iterate((enemy) => enemy?.update(this.player, this.enemyProjectiles));
-    this.bosses.children.iterate((boss) => boss?.update(this.player));
+    this.bosses.children.iterate((boss) => boss?.update(this.player, {
+      enemyProjectiles: this.enemyProjectiles,
+      spawnBossMinion: this.spawnBossMinion.bind(this),
+    }));
     this.collectibles.children.iterate((collectible) => collectible?.update(time));
 
     if (this.inputSystem.wantsAttack()) {
@@ -204,6 +265,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.updateHud();
+    this.updateBossHud();
     this.checkLevelState();
   }
 
@@ -293,11 +355,31 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  handleBossDefeated() {
+    if (this.bossRewardApplied) return;
+
+    this.bossRewardApplied = true;
+    this.levelCoins += GAME_DATA.boss.rewards.coins;
+    this.levelXp += GAME_DATA.boss.rewards.xp;
+    this.cameras.main.shake(240, 0.006);
+  }
+
   updateHud() {
     this.healthText.setText(`Vida: ${this.player.health}/${this.player.maxHealth}`);
     this.energyText.setText(`Energia: ${Math.floor(this.player.energy)}/${this.player.maxEnergy}`);
     this.coinText.setText(`Moedas: ${this.levelCoins}/${GAME_DATA.level.targetCoins} | XP: ${this.levelXp}`);
-    this.bossText.setText(this.boss?.active ? `Chefe: ${this.boss.health}/${this.boss.maxHealth}` : 'Chefe derrotado');
+  }
+
+  updateBossHud() {
+    if (!this.boss || !this.boss.active) {
+      this.bossBarFill.width = 0;
+      this.bossPhaseText.setText('Kaizen derrotado');
+      return;
+    }
+
+    const healthRatio = Phaser.Math.Clamp(this.boss.health / this.boss.maxHealth, 0, 1);
+    this.bossBarFill.width = 560 * healthRatio;
+    this.bossPhaseText.setText(`Fase ${this.boss.phase}/3`);
   }
 
   checkLevelState() {
@@ -308,12 +390,18 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const bossDefeated = !this.boss.active || this.boss.isDefeated;
-    const enoughCoins = this.levelCoins >= GAME_DATA.level.targetCoins;
 
-    if (bossDefeated && enoughCoins) {
+    if (bossDefeated) {
       this.isLevelFinished = true;
       this.progressionSystem.completeLevel(GAME_DATA.level.name, this.levelCoins);
-      this.scene.start('VictoryScene', { coins: this.levelCoins, levelName: GAME_DATA.level.name });
+      this.scene.start('VictoryScene', {
+        coins: this.levelCoins,
+        xp: this.levelXp,
+        levelName: GAME_DATA.level.name,
+        defeatedBoss: GAME_DATA.boss.name,
+        specialItem: GAME_DATA.boss.rewards.specialItem,
+        unlockedSkill: GAME_DATA.boss.rewards.unlockedSkill,
+      });
     }
   }
 }
