@@ -2,6 +2,7 @@ import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
 import UpgradeScene from './scenes/UpgradeScene.js';
+import RetentionScene from './scenes/RetentionScene.js';
 import GameOverScene from './scenes/GameOverScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
 
@@ -29,6 +30,7 @@ const config = {
     MenuScene,
     GameScene,
     UpgradeScene,
+    RetentionScene,
     GameOverScene,
     VictoryScene,
   ],
