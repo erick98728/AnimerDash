@@ -33,8 +33,8 @@ export default class MenuScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.createButton(480, 250, 'Iniciar fase', () => {
-      this.scene.start('GameScene');
+    this.createButton(480, 250, 'Selecionar fase', () => {
+      this.scene.start('LevelSelectScene');
     });
 
     this.createButton(480, 312, 'Melhorias', () => {
