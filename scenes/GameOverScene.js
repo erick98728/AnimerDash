@@ -1,9 +1,13 @@
+import AudioSystem, { AUDIO_KEYS } from '../systems/AudioSystem.js';
+
 export default class GameOverScene extends Phaser.Scene {
   constructor() {
     super('GameOverScene');
   }
 
   create(data) {
+    this.audioSystem = new AudioSystem(this);
+    this.audioSystem.playSfx(AUDIO_KEYS.sfx.defeat);
     this.add.image(480, 270, 'mist-bg-placeholder');
 
     this.add.text(480, 145, 'Você caiu na Névoa Vazia', {
@@ -20,7 +24,7 @@ export default class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.createButton(480, 300, 'Tentar novamente', () => {
-      this.scene.start('GameScene');
+      this.scene.start('GameScene', { levelId: data.levelId ?? 'level-01' });
     });
 
     this.createButton(480, 365, 'Voltar ao menu', () => {
