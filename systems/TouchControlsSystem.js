@@ -20,7 +20,32 @@ export default class TouchControlsSystem {
   }
 
   shouldShowTouchControls() {
-    return (this.scene.sys.game.device.input.touch || window.innerWidth <= 900) && this.settings.showTouchControls;
+    return (this.scene.sys.game.device.input.touch || window.innerWidth <= 940) && this.settings.showTouchControls;
+  }
+
+  getResponsiveScale() {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const aspect = width / height;
+
+    if (height <= 220) return 0.62;
+    if (aspect >= 2.15) return 0.78; // 19.5:9 e 20:9
+    if (aspect >= 1.95) return 0.84; // 18:9
+    if (aspect >= 1.72) return 0.9; // 16:9
+    return 0.82;
+  }
+
+  getSafeInsets() {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const isMobile = this.scene.sys.game.device.input.touch || window.innerWidth <= 940;
+
+    return {
+      left: isMobile ? Math.max(18, width * 0.025) : 16,
+      right: isMobile ? Math.max(18, width * 0.025) : 16,
+      top: isMobile ? Math.max(18, height * 0.045) : 16,
+      bottom: isMobile ? Math.max(18, height * 0.055) : 16,
+    };
   }
 
   createControls() {
@@ -119,19 +144,24 @@ export default class TouchControlsSystem {
   updateLayout() {
     const width = this.scene.scale.width;
     const height = this.scene.scale.height;
-    const safeBottom = Math.max(16, height * 0.04);
-    const leftBaseY = height - safeBottom - 48;
-    const rightActionX = width - 92;
+    const scale = this.getResponsiveScale();
+    const safe = this.getSafeInsets();
+    const playerScreenX = this.scene.player
+      ? this.scene.player.x - this.scene.cameras.main.scrollX
+      : width * 0.3;
+    const leftClusterX = playerScreenX < width * 0.36 ? safe.left + 58 * scale : safe.left + 80 * scale;
+    const leftBaseY = height - safe.bottom - 48 * scale;
+    const rightActionX = width - safe.right - 82 * scale;
 
     const positions = {
-      pause: { x: width - 48, y: 48 },
-      left: { x: 72, y: leftBaseY },
-      right: { x: 148, y: leftBaseY },
-      jump: { x: rightActionX - 142, y: height - safeBottom - 58 },
-      dash: { x: rightActionX - 64, y: height - safeBottom - 20 },
-      attack: { x: rightActionX, y: height - safeBottom - 92 },
-      projectile: { x: rightActionX + 44, y: height - safeBottom - 28 },
-      special: { x: rightActionX - 66, y: height - safeBottom - 130 },
+      pause: { x: width - safe.right - 32 * scale, y: safe.top + 28 * scale, radius: 31 * scale, fontSize: 15 * scale },
+      left: { x: leftClusterX, y: leftBaseY, radius: 51 * scale, fontSize: 24 * scale },
+      right: { x: leftClusterX + 74 * scale, y: leftBaseY, radius: 51 * scale, fontSize: 24 * scale },
+      jump: { x: rightActionX - 132 * scale, y: height - safe.bottom - 58 * scale, radius: 48 * scale, fontSize: 13 * scale },
+      dash: { x: rightActionX - 60 * scale, y: height - safe.bottom - 18 * scale, radius: 43 * scale, fontSize: 13 * scale },
+      attack: { x: rightActionX, y: height - safe.bottom - 92 * scale, radius: 47 * scale, fontSize: 13 * scale },
+      projectile: { x: rightActionX + 42 * scale, y: height - safe.bottom - 27 * scale, radius: 40 * scale, fontSize: 12 * scale },
+      special: { x: rightActionX - 62 * scale, y: height - safe.bottom - 128 * scale, radius: 41 * scale, fontSize: 12 * scale },
     };
 
     this.buttons.forEach((button) => {
@@ -139,7 +169,9 @@ export default class TouchControlsSystem {
       if (!position) return;
 
       button.circle.setPosition(position.x, position.y);
+      button.circle.setRadius(position.radius);
       button.label.setPosition(position.x, position.y);
+      button.label.setFontSize(Math.max(10, Math.round(position.fontSize)));
     });
   }
 
@@ -154,6 +186,8 @@ export default class TouchControlsSystem {
       label.setVisible(this.isVisible);
       label.setAlpha(this.settings.touchControlsOpacity >= 0.45 ? 1 : 0.75);
     });
+
+    this.updateLayout();
   }
 
   destroy() {
