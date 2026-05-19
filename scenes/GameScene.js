@@ -6,6 +6,7 @@ import CombatSystem from '../systems/CombatSystem.js';
 import InputSystem from '../systems/InputSystem.js';
 import ProgressionSystem from '../systems/ProgressionSystem.js';
 import RetentionSystem from '../systems/RetentionSystem.js';
+import TouchControlsSystem from '../systems/TouchControlsSystem.js';
 import { GAME_DATA } from '../data/gameData.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -25,6 +26,8 @@ export default class GameScene extends Phaser.Scene {
     this.levelXp = 0;
     this.isLevelFinished = false;
     this.bossRewardApplied = false;
+    this.isPausedByFocus = false;
+    this.isManuallyPaused = false;
 
     this.createLevel();
     this.createPlayer();
@@ -33,6 +36,8 @@ export default class GameScene extends Phaser.Scene {
     this.createHud();
     this.createBossHud();
     this.createCollisions();
+    this.createMobileControls();
+    this.setupFocusPause();
 
     this.cameras.main.setBounds(0, 0, 1700, 540);
     this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
@@ -193,9 +198,9 @@ export default class GameScene extends Phaser.Scene {
       color: '#ffd166',
     }).setScrollFactor(0);
 
-    this.helpText = this.add.text(24, 504, 'J combo, L shuriken, I Orbe do Vento', {
+    this.helpText = this.add.text(24, 504, 'Teclado: J combo, K dash, L shuriken, I Orbe | Mobile: botões na tela', {
       fontFamily: 'Arial',
-      fontSize: '16px',
+      fontSize: '15px',
       color: '#9bb6c8',
     }).setScrollFactor(0);
   }
@@ -221,6 +226,82 @@ export default class GameScene extends Phaser.Scene {
       fontSize: '14px',
       color: '#b9a7ff',
     }).setOrigin(0.5).setScrollFactor(0);
+  }
+
+  createMobileControls() {
+    this.touchControlsSystem = new TouchControlsSystem(this, this.inputSystem);
+  }
+
+  setupFocusPause() {
+    this.pauseOverlay = this.add.rectangle(480, 270, 960, 540, 0x02050a, 0.72)
+      .setScrollFactor(0)
+      .setDepth(2000)
+      .setVisible(false);
+
+    this.pauseText = this.add.text(480, 270, 'Jogo pausado\nToque ou volte para a aba para continuar', {
+      fontFamily: 'Arial',
+      fontSize: '24px',
+      color: '#f2fbff',
+      align: 'center',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setVisible(false);
+
+    this.pauseOverlay.setInteractive({ useHandCursor: true });
+    this.pauseOverlay.on('pointerdown', () => this.resumeGame());
+
+    this.game.events.on(Phaser.Core.Events.BLUR, this.pauseByFocus, this);
+    this.game.events.on(Phaser.Core.Events.FOCUS, this.resumeFromFocus, this);
+    document.addEventListener('visibilitychange', this.handleVisibilityChangeBound = () => {
+      if (document.hidden) this.pauseByFocus();
+      else this.resumeFromFocus();
+    });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off(Phaser.Core.Events.BLUR, this.pauseByFocus, this);
+      this.game.events.off(Phaser.Core.Events.FOCUS, this.resumeFromFocus, this);
+      document.removeEventListener('visibilitychange', this.handleVisibilityChangeBound);
+    });
+  }
+
+  pauseByFocus() {
+    if (this.isLevelFinished) return;
+    this.isPausedByFocus = true;
+    this.physics.pause();
+    this.tweens.pauseAll();
+    this.inputSystem.releaseAllTouchInputs();
+    this.showPauseOverlay(true);
+  }
+
+  resumeFromFocus() {
+    if (!this.isPausedByFocus) return;
+    this.resumeGame();
+  }
+
+  toggleManualPause() {
+    if (this.isPausedByFocus) return;
+
+    this.isManuallyPaused = !this.isManuallyPaused;
+    if (this.isManuallyPaused) {
+      this.physics.pause();
+      this.tweens.pauseAll();
+      this.inputSystem.releaseAllTouchInputs();
+      this.showPauseOverlay(true);
+    } else {
+      this.resumeGame();
+    }
+  }
+
+  resumeGame() {
+    this.isPausedByFocus = false;
+    this.isManuallyPaused = false;
+    this.physics.resume();
+    this.tweens.resumeAll();
+    this.showPauseOverlay(false);
+  }
+
+  showPauseOverlay(isVisible) {
+    this.pauseOverlay?.setVisible(isVisible);
+    this.pauseText?.setVisible(isVisible);
   }
 
   createCollisions() {
@@ -259,6 +340,12 @@ export default class GameScene extends Phaser.Scene {
 
   update(time, delta) {
     if (this.isLevelFinished) return;
+
+    if (this.inputSystem.wantsPause()) {
+      this.toggleManualPause();
+    }
+
+    if (this.isPausedByFocus || this.isManuallyPaused) return;
 
     this.player.update(this.inputSystem, delta);
 
