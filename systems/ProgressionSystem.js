@@ -13,8 +13,34 @@ export default class ProgressionSystem {
     this.refreshLevelFromXp();
   }
 
-  getSave() {
+  static applyLevelFromXp(save) {
+    const previousLevel = save.playerLevel ?? 1;
+    const nextLevel = getLevelFromXp(save.xp ?? 0);
+
+    if (nextLevel > previousLevel) {
+      const gainedLevels = nextLevel - previousLevel;
+      save.skillPoints += gainedLevels;
+      save.totalSkillPointsEarned += gainedLevels;
+    }
+
+    save.playerLevel = nextLevel;
+    return save;
+  }
+
+  static addRewardToSave(save, reward = {}) {
+    save.coins += Math.max(0, reward.coins ?? 0);
+    save.xp += Math.max(0, reward.xp ?? 0);
+    save.rareScrolls += Math.max(0, reward.rareScrolls ?? 0);
+    return ProgressionSystem.applyLevelFromXp(save);
+  }
+
+  reload() {
+    this.save = SaveSystem.load();
     return this.save;
+  }
+
+  getSave() {
+    return this.reload();
   }
 
   persist() {
@@ -22,85 +48,87 @@ export default class ProgressionSystem {
     return this.save;
   }
 
+  updateSave(updater) {
+    this.save = SaveSystem.update((save) => {
+      updater(save);
+      return ProgressionSystem.applyLevelFromXp(save);
+    });
+
+    return this.save;
+  }
+
   refreshLevelFromXp() {
-    const previousLevel = this.save.playerLevel ?? 1;
-    const nextLevel = getLevelFromXp(this.save.xp ?? 0);
-
-    if (nextLevel > previousLevel) {
-      const gainedLevels = nextLevel - previousLevel;
-      this.save.skillPoints += gainedLevels;
-      this.save.totalSkillPointsEarned += gainedLevels;
-    }
-
-    this.save.playerLevel = nextLevel;
-    this.persist();
-    return nextLevel;
-  }
-
-  getCoins() {
-    return this.save.coins;
-  }
-
-  getXp() {
-    return this.save.xp;
-  }
-
-  getLevel() {
+    this.save = SaveSystem.update((save) => ProgressionSystem.applyLevelFromXp(save));
     return this.save.playerLevel;
   }
 
+  getCoins() {
+    return this.reload().coins;
+  }
+
+  getXp() {
+    return this.reload().xp;
+  }
+
+  getLevel() {
+    return this.reload().playerLevel;
+  }
+
   getRareScrolls() {
-    return this.save.rareScrolls;
+    return this.reload().rareScrolls;
   }
 
   getSkillPoints() {
-    return this.save.skillPoints;
+    return this.reload().skillPoints;
   }
 
   getNextLevelXp() {
-    return getNextLevelXp(this.save.playerLevel);
+    return getNextLevelXp(this.reload().playerLevel);
   }
 
   addCoins(amount) {
-    this.save.coins += Math.max(0, amount);
-    this.persist();
+    this.updateSave((save) => {
+      save.coins += Math.max(0, amount);
+    });
     return this.save.coins;
   }
 
   addXp(amount) {
-    this.save.xp += Math.max(0, amount);
-    this.refreshLevelFromXp();
+    this.updateSave((save) => {
+      save.xp += Math.max(0, amount);
+    });
     return this.save.xp;
   }
 
   addRareScrolls(amount) {
-    this.save.rareScrolls += Math.max(0, amount);
-    this.persist();
+    this.updateSave((save) => {
+      save.rareScrolls += Math.max(0, amount);
+    });
     return this.save.rareScrolls;
   }
 
   completeLevel(levelName, earnedCoins = 0, earnedXp = 0, options = {}) {
-    if (!this.save.completedLevels.includes(levelName)) {
-      this.save.completedLevels.push(levelName);
-    }
+    this.updateSave((save) => {
+      if (!save.completedLevels.includes(levelName)) {
+        save.completedLevels.push(levelName);
+      }
 
-    this.save.coins += Math.max(0, earnedCoins);
-    this.save.xp += Math.max(0, earnedXp);
+      save.coins += Math.max(0, earnedCoins);
+      save.xp += Math.max(0, earnedXp);
 
-    if (options.rareScrolls) {
-      this.save.rareScrolls += Math.max(0, options.rareScrolls);
-    }
+      if (options.rareScrolls) {
+        save.rareScrolls += Math.max(0, options.rareScrolls);
+      }
 
-    if (options.unlockedSkill && !this.save.unlockedSkills.includes(options.unlockedSkill)) {
-      this.save.unlockedSkills.push(options.unlockedSkill);
-    }
+      if (options.unlockedSkill && !save.unlockedSkills.includes(options.unlockedSkill)) {
+        save.unlockedSkills.push(options.unlockedSkill);
+      }
 
-    if (options.specialItem && !this.save.specialItems.includes(options.specialItem)) {
-      this.save.specialItems.push(options.specialItem);
-    }
+      if (options.specialItem && !save.specialItems.includes(options.specialItem)) {
+        save.specialItems.push(options.specialItem);
+      }
+    });
 
-    this.persist();
-    this.refreshLevelFromXp();
     return this.save;
   }
 
@@ -109,46 +137,58 @@ export default class ProgressionSystem {
   }
 
   getUpgradeLevel(upgradeName) {
-    return this.save.upgrades[upgradeName] ?? 0;
+    return this.reload().upgrades[upgradeName] ?? 0;
   }
 
   getUpgradeCost(upgradeName) {
-    return getUpgradeCost(upgradeName, this.getUpgradeLevel(upgradeName), this.save.playerLevel);
+    const save = this.reload();
+    return getUpgradeCost(upgradeName, save.upgrades[upgradeName] ?? 0, save.playerLevel);
   }
 
   canBuyUpgrade(upgradeName) {
+    const save = this.reload();
     const definition = this.getUpgradeDefinition(upgradeName);
-    const currentLevel = this.getUpgradeLevel(upgradeName);
-    const cost = this.getUpgradeCost(upgradeName);
+    const currentLevel = save.upgrades[upgradeName] ?? 0;
+    const cost = getUpgradeCost(upgradeName, currentLevel, save.playerLevel);
 
     if (!definition || !cost) return false;
     if (currentLevel >= definition.maxLevel) return false;
 
     return (
-      this.save.coins >= cost.coins
-      && this.save.skillPoints >= cost.skillPoints
-      && this.save.rareScrolls >= cost.rareScrolls
+      save.coins >= cost.coins
+      && save.skillPoints >= cost.skillPoints
+      && save.rareScrolls >= cost.rareScrolls
     );
   }
 
   buyUpgrade(upgradeName) {
-    const definition = this.getUpgradeDefinition(upgradeName);
-    const cost = this.getUpgradeCost(upgradeName);
+    let purchased = false;
 
-    if (!definition || !cost || !this.canBuyUpgrade(upgradeName)) {
-      return false;
-    }
+    this.updateSave((save) => {
+      const definition = this.getUpgradeDefinition(upgradeName);
+      const currentLevel = save.upgrades[upgradeName] ?? 0;
+      const cost = getUpgradeCost(upgradeName, currentLevel, save.playerLevel);
 
-    this.save.coins -= cost.coins;
-    this.save.skillPoints -= cost.skillPoints;
-    this.save.rareScrolls -= cost.rareScrolls;
-    this.save.upgrades[upgradeName] += 1;
-    this.persist();
-    return true;
+      if (!definition || !cost) return;
+      if (currentLevel >= definition.maxLevel) return;
+      if (
+        save.coins < cost.coins
+        || save.skillPoints < cost.skillPoints
+        || save.rareScrolls < cost.rareScrolls
+      ) return;
+
+      save.coins -= cost.coins;
+      save.skillPoints -= cost.skillPoints;
+      save.rareScrolls -= cost.rareScrolls;
+      save.upgrades[upgradeName] = currentLevel + 1;
+      purchased = true;
+    });
+
+    return purchased;
   }
 
   getDerivedStats() {
-    const upgrades = this.save.upgrades;
+    const upgrades = this.reload().upgrades;
 
     return {
       maxHealth: 100 + upgrades.maxHealth * UPGRADE_DEFINITIONS.maxHealth.effectPerLevel,
