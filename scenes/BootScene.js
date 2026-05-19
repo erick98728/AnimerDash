@@ -6,6 +6,7 @@ import EnemyProjectile from '../entities/EnemyProjectile.js';
 import Collectible from '../entities/Collectible.js';
 import AudioSystem from '../systems/AudioSystem.js';
 import { COLORS } from '../data/gameData.js';
+import { ASSET_MANIFEST, USE_REAL_ASSETS, flattenAssets } from '../data/assetsManifest.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -14,8 +15,26 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     // Futuramente, sprites reais devem ser carregados aqui.
-    // Exemplo: this.load.image('ren-idle', './assets/sprites/ren-idle.png');
     AudioSystem.preload(this);
+    this.preloadVisualAssets();
+  }
+
+  preloadVisualAssets() {
+    if (!USE_REAL_ASSETS) return;
+
+    flattenAssets(ASSET_MANIFEST).forEach((asset) => {
+      if (this.textures.exists(asset.key)) return;
+
+      if (asset.frameWidth && asset.frameHeight) {
+        this.load.spritesheet(asset.key, asset.path, {
+          frameWidth: asset.frameWidth,
+          frameHeight: asset.frameHeight,
+        });
+        return;
+      }
+
+      this.load.image(asset.key, asset.path);
+    });
   }
 
   create() {
@@ -26,8 +45,17 @@ export default class BootScene extends Phaser.Scene {
     EnemyProjectile.createTexture(this);
     Collectible.createTexture(this);
     this.createWorldTextures();
+    this.createRealAssetAnimations();
 
     this.scene.start('MenuScene');
+  }
+
+  createRealAssetAnimations() {
+    if (!USE_REAL_ASSETS) return;
+
+    Player.createRealAssetAnimations?.(this);
+    Enemy.createRealAssetAnimations?.(this);
+    Boss.createRealAssetAnimations?.(this);
   }
 
   createWorldTextures() {
