@@ -1,12 +1,16 @@
+import SaveSystem from './SaveSystem.js';
+
 export default class TouchControlsSystem {
   constructor(scene, inputSystem) {
     this.scene = scene;
     this.inputSystem = inputSystem;
     this.buttons = [];
+    this.settings = SaveSystem.getSettings();
     this.isVisible = this.shouldShowTouchControls();
 
     this.createControls();
     this.updateLayout();
+    this.applySettings();
 
     scene.scale.on('resize', this.updateLayout, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -16,10 +20,14 @@ export default class TouchControlsSystem {
   }
 
   shouldShowTouchControls() {
-    return this.scene.sys.game.device.input.touch || window.innerWidth <= 900;
+    return (this.scene.sys.game.device.input.touch || window.innerWidth <= 900) && this.settings.showTouchControls;
   }
 
   createControls() {
+    this.pauseButton = this.createActionButton('pause', 'Ⅱ', 914, 52, 32, () => {
+      this.scene.pauseSystem?.pauseFromButton?.();
+    });
+
     this.leftButton = this.createHoldButton('left', '◀', 72, 440, 54, () => {
       this.inputSystem.setTouchDirection('left', true);
     }, () => {
@@ -37,15 +45,10 @@ export default class TouchControlsSystem {
     this.attackButton = this.createActionButton('attack', 'ATQ', 855, 400, 48);
     this.projectileButton = this.createActionButton('projectile', 'SHU', 910, 462, 42);
     this.specialButton = this.createActionButton('special', 'ORB', 790, 360, 43);
-
-    this.buttons.forEach(({ circle, label }) => {
-      circle.setVisible(this.isVisible);
-      label.setVisible(this.isVisible);
-    });
   }
 
   createHoldButton(id, label, x, y, radius, onPress, onRelease) {
-    const circle = this.scene.add.circle(x, y, radius, 0x18324a, 0.68)
+    const circle = this.scene.add.circle(x, y, radius, 0x18324a, this.settings.touchControlsOpacity)
       .setStrokeStyle(3, 0x7be7ff, 0.65)
       .setScrollFactor(0)
       .setDepth(1000)
@@ -59,12 +62,12 @@ export default class TouchControlsSystem {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1001);
 
     circle.on('pointerdown', () => {
-      circle.setFillStyle(0x24506f, 0.9);
+      circle.setFillStyle(0x24506f, Math.min(1, this.settings.touchControlsOpacity + 0.18));
       onPress();
     });
 
     const release = () => {
-      circle.setFillStyle(0x18324a, 0.68);
+      circle.setFillStyle(0x18324a, this.settings.touchControlsOpacity);
       onRelease();
     };
 
@@ -72,13 +75,13 @@ export default class TouchControlsSystem {
     circle.on('pointerout', release);
     circle.on('pointerupoutside', release);
 
-    const button = { id, circle, label: text, baseX: x, baseY: y, radius };
+    const button = { id, circle, label: text, baseX: x, baseY: y, radius, kind: 'hold' };
     this.buttons.push(button);
     return button;
   }
 
-  createActionButton(action, label, x, y, radius) {
-    const circle = this.scene.add.circle(x, y, radius, 0x32224f, 0.72)
+  createActionButton(action, label, x, y, radius, customCallback = null) {
+    const circle = this.scene.add.circle(x, y, radius, 0x32224f, this.settings.touchControlsOpacity)
       .setStrokeStyle(3, 0xffd166, 0.72)
       .setScrollFactor(0)
       .setDepth(1000)
@@ -92,19 +95,23 @@ export default class TouchControlsSystem {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1001);
 
     circle.on('pointerdown', () => {
-      circle.setFillStyle(0x5d3fd3, 0.92);
-      this.inputSystem.triggerTouchAction(action);
+      circle.setFillStyle(0x5d3fd3, Math.min(1, this.settings.touchControlsOpacity + 0.2));
+      if (customCallback) {
+        customCallback();
+      } else {
+        this.inputSystem.triggerTouchAction(action);
+      }
     });
 
     const release = () => {
-      circle.setFillStyle(0x32224f, 0.72);
+      circle.setFillStyle(0x32224f, this.settings.touchControlsOpacity);
     };
 
     circle.on('pointerup', release);
     circle.on('pointerout', release);
     circle.on('pointerupoutside', release);
 
-    const button = { id: action, circle, label: text, baseX: x, baseY: y, radius };
+    const button = { id: action, circle, label: text, baseX: x, baseY: y, radius, kind: 'action' };
     this.buttons.push(button);
     return button;
   }
@@ -117,6 +124,7 @@ export default class TouchControlsSystem {
     const rightActionX = width - 92;
 
     const positions = {
+      pause: { x: width - 48, y: 48 },
       left: { x: 72, y: leftBaseY },
       right: { x: 148, y: leftBaseY },
       jump: { x: rightActionX - 142, y: height - safeBottom - 58 },
@@ -132,6 +140,19 @@ export default class TouchControlsSystem {
 
       button.circle.setPosition(position.x, position.y);
       button.label.setPosition(position.x, position.y);
+    });
+  }
+
+  applySettings() {
+    this.settings = SaveSystem.getSettings();
+    this.isVisible = this.shouldShowTouchControls();
+
+    this.buttons.forEach(({ circle, label, kind }) => {
+      const fillColor = kind === 'hold' ? 0x18324a : 0x32224f;
+      circle.setFillStyle(fillColor, this.settings.touchControlsOpacity);
+      circle.setVisible(this.isVisible);
+      label.setVisible(this.isVisible);
+      label.setAlpha(this.settings.touchControlsOpacity >= 0.45 ? 1 : 0.75);
     });
   }
 
