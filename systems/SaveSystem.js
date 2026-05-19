@@ -3,7 +3,7 @@ export default class SaveSystem {
 
   static getDefaultSave() {
     return {
-      version: 3,
+      version: 4,
       playerLevel: 1,
       xp: 0,
       coins: 0,
@@ -60,13 +60,21 @@ export default class SaveSystem {
       ...defaultSave,
       ...loaded,
       version: defaultSave.version,
+      playerLevel: Number.isFinite(loaded.playerLevel) ? loaded.playerLevel : defaultSave.playerLevel,
+      xp: Number.isFinite(loaded.xp) ? loaded.xp : defaultSave.xp,
+      coins: Number.isFinite(loaded.coins) ? loaded.coins : defaultSave.coins,
+      rareScrolls: Number.isFinite(loaded.rareScrolls) ? loaded.rareScrolls : defaultSave.rareScrolls,
+      skillPoints: Number.isFinite(loaded.skillPoints) ? loaded.skillPoints : defaultSave.skillPoints,
+      totalSkillPointsEarned: Number.isFinite(loaded.totalSkillPointsEarned)
+        ? loaded.totalSkillPointsEarned
+        : defaultSave.totalSkillPointsEarned,
       upgrades: {
         ...defaultSave.upgrades,
         ...(loaded.upgrades ?? {}),
       },
-      completedLevels: loaded.completedLevels ?? defaultSave.completedLevels,
-      unlockedSkills: loaded.unlockedSkills ?? defaultSave.unlockedSkills,
-      specialItems: loaded.specialItems ?? defaultSave.specialItems,
+      completedLevels: Array.isArray(loaded.completedLevels) ? loaded.completedLevels : defaultSave.completedLevels,
+      unlockedSkills: Array.isArray(loaded.unlockedSkills) ? loaded.unlockedSkills : defaultSave.unlockedSkills,
+      specialItems: Array.isArray(loaded.specialItems) ? loaded.specialItems : defaultSave.specialItems,
       retention: {
         ...defaultSave.retention,
         ...loadedRetention,
@@ -106,6 +114,12 @@ export default class SaveSystem {
 
     localStorage.setItem(SaveSystem.key, JSON.stringify(nextSave));
     return nextSave;
+  }
+
+  static update(updater) {
+    const currentSave = SaveSystem.load();
+    const result = updater(currentSave) ?? currentSave;
+    return SaveSystem.save(result);
   }
 
   static reset() {
