@@ -2,7 +2,12 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="screen-orientation" content="landscape" />
+  <meta name="x5-orientation" content="landscape" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Kage no Kiro</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
@@ -17,15 +22,17 @@
         <p class="game-subtitle">Jogo 2D web de ação ninja original</p>
       </div>
 
+      <div class="orientation-warning">
+        <strong>Vire o celular</strong>
+        <span>Este jogo foi pensado para jogar na horizontal.</span>
+      </div>
+
       <div id="game-container" aria-label="Área do jogo Kage no Kiro"></div>
 
       <div class="controls-help">
         <strong>Controles:</strong>
-        <span>WASD ou setas para mover</span>
-        <span>Espaço para pular</span>
-        <span>J para atacar</span>
-        <span>K para esquivar</span>
-        <span>L para lançar projétil</span>
+        <span>PC: WASD/setas, Espaço, J, K, L, I</span>
+        <span>Mobile: use os botões virtuais na tela</span>
       </div>
     </section>
   </main>
