@@ -1,5 +1,6 @@
 import Player from '../entities/Player.js';
 import Enemy from '../entities/Enemy.js';
+import AudioSystem, { AUDIO_KEYS } from '../systems/AudioSystem.js';
 import BossHudSystem from '../systems/BossHudSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import CombatSystem from '../systems/CombatSystem.js';
@@ -24,6 +25,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.audioSystem = new AudioSystem(this);
     this.combatSystem = new CombatSystem(this);
     this.inputSystem = new InputSystem(this);
     this.levelSystem = new LevelSystem(this);
@@ -43,8 +45,18 @@ export default class GameScene extends Phaser.Scene {
     this.createCombatGroups();
     this.createSystems();
     this.startOpeningDialogues();
+    this.startLevelMusic();
 
     this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.audioSystem?.stopMusic();
+    });
+  }
+
+  startLevelMusic() {
+    const musicKey = this.levelSystem.requiresBossDefeat() ? AUDIO_KEYS.music.boss : AUDIO_KEYS.music.level;
+    this.audioSystem.playMusic(musicKey);
   }
 
   createLevel() {
@@ -230,6 +242,7 @@ export default class GameScene extends Phaser.Scene {
     comboStep.damage += this.player.attackDamageBonus ?? 0;
     const hitbox = this.combatSystem.createComboHitbox(this.player, comboStep);
     this.meleeHitboxes.add(hitbox);
+    this.audioSystem.playSfx(AUDIO_KEYS.sfx.attack);
 
     this.time.delayedCall(combatConfig.comboCooldown, () => {
       this.player.canAttack = true;
@@ -244,6 +257,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.canThrowShuriken = false;
     this.combatSystem.createShuriken(this.player, this.projectiles);
+    this.audioSystem.playSfx(AUDIO_KEYS.sfx.shuriken);
 
     const minimumCooldown = this.player.shurikenMinimumCooldown ?? 180;
     const cooldown = Math.max(minimumCooldown, config.cooldown - (this.player.shurikenCooldownReduction ?? 0));
@@ -261,6 +275,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.canUseSpecial = false;
     this.retentionSystem.recordSpecialUse(1);
     this.combatSystem.createWindOrb(this.player, this.projectiles);
+    this.audioSystem.playSfx(AUDIO_KEYS.sfx.windOrb);
     this.cameras.main.shake(120, 0.0035);
 
     this.time.delayedCall(config.cooldown, () => {
@@ -290,6 +305,7 @@ export default class GameScene extends Phaser.Scene {
   checkLevelState() {
     if (this.player.isDefeated) {
       this.isLevelFinished = true;
+      this.audioSystem.stopMusic();
       this.scene.start('GameOverScene', { coins: this.levelCoins, levelId: this.levelData.id });
     }
   }
@@ -309,6 +325,7 @@ export default class GameScene extends Phaser.Scene {
       unlockedSkill: reward.unlockedSkill,
     });
 
+    this.audioSystem.stopMusic();
     this.scene.start('VictoryScene', {
       coins: earnedCoins,
       xp: earnedXp,
