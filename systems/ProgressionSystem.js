@@ -1,7 +1,9 @@
 import SaveSystem from './SaveSystem.js';
 import {
+  COMBAT_BALANCE,
   LEVEL_BALANCE,
   UPGRADE_DEFINITIONS,
+  clamp,
   getLevelFromXp,
   getNextLevelXp,
   getUpgradeCost,
@@ -189,14 +191,23 @@ export default class ProgressionSystem {
 
   getDerivedStats() {
     const upgrades = this.reload().upgrades;
+    const attackBonus = upgrades.attackDamage * UPGRADE_DEFINITIONS.attackDamage.effectPerLevel;
+    const shurikenRawBonus = upgrades.shuriken * COMBAT_BALANCE.shuriken.upgradeDamagePerLevel;
+    const shurikenDamageBonus = clamp(shurikenRawBonus, 0, COMBAT_BALANCE.shuriken.maxUpgradeDamageBonus);
+    const specialRawBonus = Math.floor(
+      attackBonus * COMBAT_BALANCE.special.attackUpgradeScaling
+      + shurikenDamageBonus * COMBAT_BALANCE.special.shurikenUpgradeScaling,
+    );
 
     return {
       maxHealth: 100 + upgrades.maxHealth * UPGRADE_DEFINITIONS.maxHealth.effectPerLevel,
-      attackBonus: upgrades.attackDamage * UPGRADE_DEFINITIONS.attackDamage.effectPerLevel,
+      attackBonus: clamp(attackBonus, 0, COMBAT_BALANCE.combo.maxAttackBonusPerHit),
       maxEnergy: 100 + upgrades.energy * UPGRADE_DEFINITIONS.energy.effectPerLevel,
       dashCooldownReduction: upgrades.dash * UPGRADE_DEFINITIONS.dash.effectPerLevel,
-      shurikenDamageBonus: upgrades.shuriken * UPGRADE_DEFINITIONS.shuriken.effectPerLevel,
-      shurikenCooldownReduction: upgrades.shuriken * 20,
+      shurikenDamageBonus,
+      shurikenCooldownReduction: upgrades.shuriken * COMBAT_BALANCE.shuriken.cooldownReductionPerLevel,
+      shurikenMinimumCooldown: COMBAT_BALANCE.shuriken.minimumCooldown,
+      specialDamageBonus: clamp(specialRawBonus, 0, COMBAT_BALANCE.special.maxUpgradeDamageBonus),
     };
   }
 
