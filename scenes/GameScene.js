@@ -66,11 +66,15 @@ export default class GameScene extends Phaser.Scene {
   createEnemies() {
     this.enemies = this.physics.add.group();
     this.bosses = this.physics.add.group();
+    this.enemyProjectiles = this.physics.add.group();
 
-    this.addEnemy(new Enemy(this, 520, 370));
-    this.addEnemy(new Enemy(this, 760, 290, { speed: 65, patrolDistance: 90 }));
-    this.addEnemy(new Enemy(this, 1030, 390, { health: 55, damage: 14 }));
+    // Quatro tipos de inimigos do MVP.
+    this.addEnemy(new Enemy(this, 410, 450, 'weakNinja'));
+    this.addEnemy(new Enemy(this, 650, 370, 'kunaiShooter'));
+    this.addEnemy(new Enemy(this, 930, 390, 'heavyGuardian'));
+    this.addEnemy(new Enemy(this, 1190, 310, 'shadowNinja'));
 
+    // Boss mantido como desafio final da fase.
     this.boss = new Boss(this, 1450, 430);
     this.boss.dropCoins = 6;
     this.boss.dropXp = 5;
@@ -155,12 +159,19 @@ export default class GameScene extends Phaser.Scene {
       collectible.destroy();
     });
 
+    // Colisão corporal com inimigos. O dano principal de ataque dos inimigos fica no comportamento deles,
+    // mas o contato ainda causa dano leve para evitar atravessar inimigos sem risco.
     this.physics.add.overlap(this.player, this.enemies, (player, enemy) => {
-      player.takeDamage(enemy.damage);
+      player.takeDamage(Math.ceil(enemy.damage * 0.45));
     });
 
     this.physics.add.overlap(this.player, this.bosses, (player, boss) => {
       player.takeDamage(boss.damage);
+    });
+
+    this.physics.add.overlap(this.player, this.enemyProjectiles, (player, projectile) => {
+      player.takeDamage(projectile.damage);
+      projectile.destroy();
     });
 
     this.physics.add.overlap(this.meleeHitboxes, this.enemies, this.handleHitboxOverlap, undefined, this);
@@ -174,7 +185,9 @@ export default class GameScene extends Phaser.Scene {
 
     // Envia o delta para o Player para aceleração, desaceleração e energia ficarem consistentes.
     this.player.update(this.inputSystem, delta);
-    this.enemies.children.iterate((enemy) => enemy?.update());
+
+    // Inimigos comuns recebem player e grupo de projéteis para controlar IA e ataques.
+    this.enemies.children.iterate((enemy) => enemy?.update(this.player, this.enemyProjectiles));
     this.bosses.children.iterate((boss) => boss?.update(this.player));
     this.collectibles.children.iterate((collectible) => collectible?.update(time));
 
