@@ -1,9 +1,11 @@
+import { ASSET_MANIFEST, getTextureKey } from '../data/assetsManifest.js';
 import { COLORS, GAME_DATA } from '../data/gameData.js';
 import { AUDIO_KEYS } from '../systems/AudioSystem.js';
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
-    super(scene, x, y, 'player-idle-placeholder');
+    const idleTexture = getTextureKey(scene, ASSET_MANIFEST.player.ren.idle, 'player-idle-placeholder');
+    super(scene, x, y, idleTexture);
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -16,12 +18,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.maxHealth = GAME_DATA.player.maxHealth;
     this.health = this.maxHealth;
 
-    // Energia usada para shuriken e Orbe do Vento.
     this.maxEnergy = GAME_DATA.player.maxEnergy;
     this.energy = this.maxEnergy;
     this.energyRegenPerSecond = GAME_DATA.player.energyRegenPerSecond;
 
-    // Configurações principais de movimento.
     this.speed = GAME_DATA.player.speed;
     this.acceleration = GAME_DATA.player.acceleration;
     this.deceleration = GAME_DATA.player.deceleration;
@@ -30,14 +30,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.maxJumps = GAME_DATA.player.maxJumps;
     this.jumpCount = 0;
 
-    // Configurações do dash.
     this.dashSpeed = GAME_DATA.player.dashSpeed;
     this.dashDuration = GAME_DATA.player.dashDuration;
     this.dashCooldown = GAME_DATA.player.dashCooldown;
     this.canDash = true;
     this.isDashing = false;
 
-    // Estado de combate.
     this.comboIndex = 0;
     this.lastComboAt = 0;
     this.canAttack = true;
@@ -78,7 +76,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       graphics.destroy();
     });
 
-    // Mantém compatibilidade com qualquer código antigo que ainda chame player-placeholder.
     if (!scene.textures.exists('player-placeholder')) {
       const graphics = scene.add.graphics();
       graphics.fillStyle(COLORS.player, 1);
@@ -94,20 +91,28 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   static createPlaceholderAnimations(scene) {
     const animations = [
-      ['player-idle', 'player-idle-placeholder', 6],
-      ['player-run', 'player-run-placeholder', 12],
-      ['player-jump', 'player-jump-placeholder', 1],
-      ['player-fall', 'player-fall-placeholder', 1],
-      ['player-dash', 'player-dash-placeholder', 1],
+      ['player-idle', getTextureKey(scene, ASSET_MANIFEST.player.ren.idle, 'player-idle-placeholder'), 6],
+      ['player-run', getTextureKey(scene, ASSET_MANIFEST.player.ren.run, 'player-run-placeholder'), 12],
+      ['player-jump', getTextureKey(scene, ASSET_MANIFEST.player.ren.jump, 'player-jump-placeholder'), 1],
+      ['player-fall', getTextureKey(scene, ASSET_MANIFEST.player.ren.fall, 'player-fall-placeholder'), 1],
+      ['player-dash', getTextureKey(scene, ASSET_MANIFEST.player.ren.dash, 'player-dash-placeholder'), 1],
     ];
 
     animations.forEach(([key, textureKey, frameRate]) => {
       if (scene.anims.exists(key)) return;
 
-      // Cada animação placeholder usa um frame único por enquanto.
-      // Quando sprites reais entrarem, basta trocar por spritesheets aqui.
-      scene.anims.create({ key, frames: [{ key: textureKey }], frameRate, repeat: -1 });
+      const texture = scene.textures.get(textureKey);
+      const frameEnd = Math.max(0, (texture?.frameTotal ?? 1) - 2);
+      const frames = frameEnd > 0
+        ? scene.anims.generateFrameNumbers(textureKey, { start: 0, end: frameEnd })
+        : [{ key: textureKey }];
+
+      scene.anims.create({ key, frames, frameRate, repeat: -1 });
     });
+  }
+
+  static createRealAssetAnimations(scene) {
+    Player.createPlaceholderAnimations(scene);
   }
 
   update(inputSystem, delta = 16.67) {
@@ -116,22 +121,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const deltaSeconds = delta / 1000;
     const isOnGround = this.body.blocked.down;
 
-    // Regeneração leve de energia para manter o combate dinâmico.
     this.energy = Math.min(this.maxEnergy, this.energy + this.energyRegenPerSecond * deltaSeconds);
 
-    // Quando toca o chão, o jogador recupera os pulos.
-    if (isOnGround) {
-      this.jumpCount = 0;
-    }
+    if (isOnGround) this.jumpCount = 0;
 
     if (!this.isDashing) {
       this.handleHorizontalMovement(inputSystem, deltaSeconds);
       this.handleJump(inputSystem);
     }
 
-    if (inputSystem.wantsDash()) {
-      this.dash();
-    }
+    if (inputSystem.wantsDash()) this.dash();
 
     this.updateAnimationState();
   }
@@ -143,7 +142,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.facingDirection = direction;
       this.setFlipX(direction < 0);
 
-      // Aceleração progressiva até a velocidade máxima.
       const nextVelocity = Phaser.Math.Clamp(
         this.body.velocity.x + direction * this.acceleration * deltaSeconds,
         -this.speed,
@@ -154,7 +152,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // Desaceleração suave quando o jogador solta o botão.
     const currentVelocity = this.body.velocity.x;
     const slowDown = this.deceleration * deltaSeconds;
 
@@ -179,9 +176,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const combat = GAME_DATA.player.combat;
     const now = this.scene.time.now;
 
-    if (now - this.lastComboAt > combat.comboResetTime) {
-      this.comboIndex = 0;
-    }
+    if (now - this.lastComboAt > combat.comboResetTime) this.comboIndex = 0;
 
     const comboStep = combat.comboSteps[this.comboIndex];
     this.comboIndex = (this.comboIndex + 1) % combat.comboSteps.length;
@@ -192,7 +187,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   spendEnergy(amount) {
     if (this.energy < amount) return false;
-
     this.energy -= amount;
     return true;
   }
@@ -209,7 +203,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.isInvulnerable = true;
     this.scene.audioSystem?.playSfx(AUDIO_KEYS.sfx.dash);
 
-    // Durante o dash, a gravidade é pausada por um instante para dar sensação de corte rápido.
     this.body.allowGravity = false;
     this.setVelocityY(0);
     this.setVelocityX(this.facingDirection * this.dashSpeed);
@@ -229,27 +222,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   updateAnimationState() {
-    if (this.isDashing) {
-      this.play('player-dash', true);
-      return;
-    }
-
-    if (this.body.velocity.y < -30) {
-      this.play('player-jump', true);
-      return;
-    }
-
-    if (this.body.velocity.y > 30) {
-      this.play('player-fall', true);
-      return;
-    }
-
-    if (Math.abs(this.body.velocity.x) > 18) {
-      this.play('player-run', true);
-      return;
-    }
-
-    this.play('player-idle', true);
+    if (this.isDashing) return this.play('player-dash', true);
+    if (this.body.velocity.y < -30) return this.play('player-jump', true);
+    if (this.body.velocity.y > 30) return this.play('player-fall', true);
+    if (Math.abs(this.body.velocity.x) > 18) return this.play('player-run', true);
+    return this.play('player-idle', true);
   }
 
   takeDamage(amount) {
