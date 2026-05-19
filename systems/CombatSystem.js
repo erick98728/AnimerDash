@@ -25,6 +25,7 @@ export default class CombatSystem {
     hitbox.body.allowGravity = false;
     hitbox.damage = comboStep.damage;
     hitbox.knockback = comboStep.knockback;
+    hitbox.energyGain = comboStep.energyGain ?? 0;
     hitbox.owner = attacker;
     hitbox.alreadyHit = new Set();
 
@@ -46,12 +47,14 @@ export default class CombatSystem {
       height: 34,
       duration: 110,
       knockback: 140,
+      energyGain: 5,
     });
   }
 
   createShuriken(owner, group) {
     const config = GAME_DATA.player.combat.shuriken;
     const direction = owner.facingDirection ?? 1;
+    const finalDamage = config.damage + (owner.shurikenDamageBonus ?? 0);
 
     const projectile = new Projectile(
       this.scene,
@@ -60,7 +63,7 @@ export default class CombatSystem {
       direction,
       {
         type: 'shuriken',
-        damage: config.damage,
+        damage: finalDamage,
         speed: config.speed,
         knockback: config.knockback,
         lifeTime: 1350,
@@ -75,6 +78,7 @@ export default class CombatSystem {
   createWindOrb(owner, group) {
     const config = GAME_DATA.player.combat.special;
     const direction = owner.facingDirection ?? 1;
+    const finalDamage = config.damage + (owner.specialDamageBonus ?? 0);
 
     const projectile = new Projectile(
       this.scene,
@@ -83,7 +87,7 @@ export default class CombatSystem {
       direction,
       {
         type: 'special',
-        damage: config.damage,
+        damage: finalDamage,
         speed: config.speed,
         knockback: config.knockback,
         pierce: true,
