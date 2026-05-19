@@ -1,9 +1,13 @@
+import AudioSystem, { AUDIO_KEYS } from '../systems/AudioSystem.js';
+
 export default class VictoryScene extends Phaser.Scene {
   constructor() {
     super('VictoryScene');
   }
 
   create(data) {
+    this.audioSystem = new AudioSystem(this);
+    this.audioSystem.playSfx(AUDIO_KEYS.sfx.victory);
     this.add.image(480, 270, 'mist-bg-placeholder');
 
     const title = data.defeatedBoss ? 'Chefe derrotado!' : 'Selo restaurado!';
@@ -54,7 +58,7 @@ export default class VictoryScene extends Phaser.Scene {
     }
 
     this.createButton(480, 360, 'Jogar novamente', () => {
-      this.scene.start('GameScene');
+      this.scene.start('GameScene', { levelId: data.levelId ?? 'level-01' });
     });
 
     this.createButton(480, 420, 'Melhorias', () => {
