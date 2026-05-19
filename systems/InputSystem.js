@@ -14,8 +14,6 @@ export default class InputSystem {
       pause: Phaser.Input.Keyboard.KeyCodes.ESC,
     });
 
-    // Estrutura preparada para controles mobile touch no futuro.
-    // Por enquanto, tudo fica falso e o teclado continua sendo o controle principal.
     this.touch = {
       left: false,
       right: false,
@@ -66,17 +64,25 @@ export default class InputSystem {
     return keyboardSpecial || touchSpecial;
   }
 
-  // Este método será útil quando botões na tela forem adicionados.
+  wantsPause() {
+    return Phaser.Input.Keyboard.JustDown(this.keys.pause);
+  }
+
   setTouchDirection(direction, isPressed) {
     if (direction === 'left') this.touch.left = isPressed;
     if (direction === 'right') this.touch.right = isPressed;
   }
 
-  // Este método permite que futuros botões mobile disparem ações únicas.
   triggerTouchAction(action) {
     if (Object.prototype.hasOwnProperty.call(this.touch, action)) {
       this.touch[action] = true;
     }
+  }
+
+  releaseAllTouchInputs() {
+    Object.keys(this.touch).forEach((key) => {
+      this.touch[key] = false;
+    });
   }
 
   consumeTouchAction(action) {
