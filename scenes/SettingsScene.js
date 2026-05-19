@@ -14,36 +14,37 @@ export default class SettingsScene extends Phaser.Scene {
     this.settings = SaveSystem.getSettings();
 
     this.add.rectangle(480, 270, 960, 540, 0x02050a, 0.86).setDepth(2500);
-    this.add.rectangle(480, 270, 620, 420, 0x07111f, 0.96)
+    this.add.rectangle(480, 270, 660, 454, 0x07111f, 0.96)
       .setStrokeStyle(3, 0x7be7ff, 0.75)
       .setDepth(2501);
 
-    this.add.text(480, 92, 'Configurações', {
+    this.add.text(480, 70, 'Configurações', {
       fontFamily: 'Arial',
-      fontSize: '34px',
+      fontSize: '32px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(2502);
 
-    this.createVolumeControl(480, 158, 'Volume da música', 'musicVolume');
-    this.createVolumeControl(480, 224, 'Volume dos efeitos', 'sfxVolume');
-    this.createToggle(480, 290, 'Botões mobile', 'showTouchControls');
-    this.createVolumeControl(480, 356, 'Opacidade dos botões', 'touchControlsOpacity', 0.25, 1);
+    this.createVolumeControl(480, 128, 'Volume da música', 'musicVolume');
+    this.createVolumeControl(480, 190, 'Volume dos efeitos', 'sfxVolume');
+    this.createToggle(480, 250, 'Botões mobile', 'showTouchControls');
+    this.createVolumeControl(480, 312, 'Opacidade dos botões', 'touchControlsOpacity', 0.25, 1);
+    this.createToggle(480, 374, 'Ocultar ajuda no mobile', 'hideMobileGameplayHelp', 'Ocultar', 'Mostrar');
 
-    this.createButton(480, 440, 'Voltar', () => this.closeSettings());
+    this.createButton(480, 464, 'Voltar', () => this.closeSettings());
   }
 
   createVolumeControl(x, y, label, settingKey, min = 0, max = 1) {
-    this.add.text(x - 230, y - 18, label, {
+    this.add.text(x - 250, y - 18, label, {
       fontFamily: 'Arial',
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setDepth(2502);
 
-    const valueText = this.add.text(x + 214, y - 18, `${Math.round(this.settings[settingKey] * 100)}%`, {
+    const valueText = this.add.text(x + 236, y - 18, `${Math.round(this.settings[settingKey] * 100)}%`, {
       fontFamily: 'Arial',
-      fontSize: '16px',
+      fontSize: '15px',
       color: '#ffd166',
       fontStyle: 'bold',
     }).setOrigin(1, 0).setDepth(2502);
@@ -66,17 +67,17 @@ export default class SettingsScene extends Phaser.Scene {
     valueText.progressMax = max;
   }
 
-  createToggle(x, y, label, settingKey) {
-    this.add.text(x - 230, y - 12, label, {
+  createToggle(x, y, label, settingKey, trueText = 'Mostrar', falseText = 'Ocultar') {
+    this.add.text(x - 250, y - 12, label, {
       fontFamily: 'Arial',
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setDepth(2502);
 
-    const valueText = this.add.text(x + 214, y - 12, this.settings[settingKey] ? 'Mostrar' : 'Ocultar', {
+    const valueText = this.add.text(x + 236, y - 12, this.settings[settingKey] ? trueText : falseText, {
       fontFamily: 'Arial',
-      fontSize: '16px',
+      fontSize: '15px',
       color: '#ffd166',
       fontStyle: 'bold',
     }).setOrigin(1, 0).setDepth(2502);
@@ -85,7 +86,7 @@ export default class SettingsScene extends Phaser.Scene {
       const nextValue = !this.settings[settingKey];
       this.settings[settingKey] = nextValue;
       SaveSystem.updateSettings({ [settingKey]: nextValue });
-      valueText.setText(nextValue ? 'Mostrar' : 'Ocultar');
+      valueText.setText(nextValue ? trueText : falseText);
       this.applyRuntimeSettings();
     }, 180, 34);
   }
@@ -102,7 +103,7 @@ export default class SettingsScene extends Phaser.Scene {
 
     const text = this.add.text(x, y, label, {
       fontFamily: 'Arial',
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(2503);
@@ -134,6 +135,7 @@ export default class SettingsScene extends Phaser.Scene {
   applyRuntimeSettings() {
     const targetScene = this.scene.get(this.returnScene);
     targetScene?.touchControlsSystem?.applySettings?.();
+    targetScene?.hudSystem?.applySettings?.();
 
     if (targetScene?.sound) {
       targetScene.sound.volume = Math.max(this.settings.musicVolume, this.settings.sfxVolume);
