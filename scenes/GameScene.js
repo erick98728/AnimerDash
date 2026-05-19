@@ -67,9 +67,11 @@ export default class GameScene extends Phaser.Scene {
     this.player.maxEnergy = stats.maxEnergy;
     this.player.energy = stats.maxEnergy;
     this.player.dashCooldown = Math.max(300, this.player.dashCooldown - stats.dashCooldownReduction);
-    this.player.attackDamage += stats.attackBonus;
-    this.player.projectileDamage += stats.shurikenDamageBonus;
+    this.player.attackDamageBonus = stats.attackBonus;
+    this.player.shurikenDamageBonus = stats.shurikenDamageBonus;
+    this.player.specialDamageBonus = stats.specialDamageBonus;
     this.player.shurikenCooldownReduction = stats.shurikenCooldownReduction;
+    this.player.shurikenMinimumCooldown = stats.shurikenMinimumCooldown;
   }
 
   createEnemies() {
@@ -368,7 +370,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.canAttack = false;
     const comboStep = { ...this.player.getNextComboStep() };
-    comboStep.damage += this.progressionSystem.getDerivedStats().attackBonus;
+    comboStep.damage += this.player.attackDamageBonus ?? 0;
     const hitbox = this.combatSystem.createComboHitbox(this.player, comboStep);
     this.meleeHitboxes.add(hitbox);
 
@@ -386,7 +388,8 @@ export default class GameScene extends Phaser.Scene {
     this.player.canThrowShuriken = false;
     this.combatSystem.createShuriken(this.player, this.projectiles);
 
-    const cooldown = Math.max(180, config.cooldown - (this.player.shurikenCooldownReduction ?? 0));
+    const minimumCooldown = this.player.shurikenMinimumCooldown ?? 180;
+    const cooldown = Math.max(minimumCooldown, config.cooldown - (this.player.shurikenCooldownReduction ?? 0));
     this.time.delayedCall(cooldown, () => {
       this.player.canThrowShuriken = true;
     });
@@ -414,7 +417,7 @@ export default class GameScene extends Phaser.Scene {
 
     hitbox.alreadyHit.add(enemy);
     this.combatSystem.applyDamage(enemy, hitbox.damage, hitbox);
-    hitbox.owner?.gainEnergy?.(hitbox.energyGain ?? GAME_DATA.player.combat.comboSteps[0].energyGain ?? 5);
+    hitbox.owner?.gainEnergy?.(hitbox.energyGain ?? 0);
   }
 
   handleProjectileOverlap(projectile, enemy) {
