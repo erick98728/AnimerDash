@@ -1,5 +1,6 @@
 import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
+import LevelSelectScene from './scenes/LevelSelectScene.js';
 import GameScene from './scenes/GameScene.js';
 import UpgradeScene from './scenes/UpgradeScene.js';
 import RetentionScene from './scenes/RetentionScene.js';
@@ -41,6 +42,7 @@ const config = {
   scene: [
     BootScene,
     MenuScene,
+    LevelSelectScene,
     GameScene,
     UpgradeScene,
     RetentionScene,
@@ -50,5 +52,5 @@ const config = {
 };
 
 window.addEventListener('load', () => {
-  new Phaser.Game(config);
+  window.game = new Phaser.Game(config);
 });
