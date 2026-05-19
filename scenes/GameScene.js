@@ -78,7 +78,21 @@ export default class GameScene extends Phaser.Scene {
 
   createPlayer() {
     this.player = new Player(this, 90, 420);
+    this.applyProgressionStatsToPlayer();
     this.physics.add.collider(this.player, this.platforms);
+  }
+
+  applyProgressionStatsToPlayer() {
+    const stats = this.progressionSystem.getDerivedStats();
+
+    this.player.maxHealth = stats.maxHealth;
+    this.player.health = stats.maxHealth;
+    this.player.maxEnergy = stats.maxEnergy;
+    this.player.energy = stats.maxEnergy;
+    this.player.dashCooldown = Math.max(300, this.player.dashCooldown - stats.dashCooldownReduction);
+    this.player.attackDamage += stats.attackBonus;
+    this.player.projectileDamage += stats.shurikenDamageBonus;
+    this.player.shurikenCooldownReduction = stats.shurikenCooldownReduction;
   }
 
   createEnemies() {
@@ -86,7 +100,6 @@ export default class GameScene extends Phaser.Scene {
     this.bosses = this.physics.add.group();
     this.enemyProjectiles = this.physics.add.group();
 
-    // Guardas antes da arena para aquecer o jogador sem cansar a fase.
     this.addEnemy(new Enemy(this, 410, 450, 'weakNinja'));
     this.addEnemy(new Enemy(this, 650, 370, 'kunaiShooter'));
     this.addEnemy(new Enemy(this, 930, 390, 'shadowNinja'));
@@ -274,7 +287,8 @@ export default class GameScene extends Phaser.Scene {
     if (!this.player.canAttack) return;
 
     this.player.canAttack = false;
-    const comboStep = this.player.getNextComboStep();
+    const comboStep = { ...this.player.getNextComboStep() };
+    comboStep.damage += this.progressionSystem.getDerivedStats().attackBonus;
     const hitbox = this.combatSystem.createComboHitbox(this.player, comboStep);
     this.meleeHitboxes.add(hitbox);
 
@@ -292,7 +306,8 @@ export default class GameScene extends Phaser.Scene {
     this.player.canThrowShuriken = false;
     this.combatSystem.createShuriken(this.player, this.projectiles);
 
-    this.time.delayedCall(config.cooldown, () => {
+    const cooldown = Math.max(180, config.cooldown - (this.player.shurikenCooldownReduction ?? 0));
+    this.time.delayedCall(cooldown, () => {
       this.player.canThrowShuriken = true;
     });
   }
@@ -393,7 +408,11 @@ export default class GameScene extends Phaser.Scene {
 
     if (bossDefeated) {
       this.isLevelFinished = true;
-      this.progressionSystem.completeLevel(GAME_DATA.level.name, this.levelCoins);
+      this.progressionSystem.completeLevel(GAME_DATA.level.name, this.levelCoins, this.levelXp, {
+        rareScrolls: 1,
+        specialItem: GAME_DATA.boss.rewards.specialItem,
+        unlockedSkill: GAME_DATA.boss.rewards.unlockedSkill,
+      });
       this.scene.start('VictoryScene', {
         coins: this.levelCoins,
         xp: this.levelXp,
