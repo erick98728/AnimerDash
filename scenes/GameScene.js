@@ -5,6 +5,7 @@ import Collectible from '../entities/Collectible.js';
 import CombatSystem from '../systems/CombatSystem.js';
 import InputSystem from '../systems/InputSystem.js';
 import ProgressionSystem from '../systems/ProgressionSystem.js';
+import RetentionSystem from '../systems/RetentionSystem.js';
 import { GAME_DATA } from '../data/gameData.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -19,6 +20,7 @@ export default class GameScene extends Phaser.Scene {
     this.combatSystem = new CombatSystem(this);
     this.inputSystem = new InputSystem(this);
     this.progressionSystem = new ProgressionSystem();
+    this.retentionSystem = new RetentionSystem();
     this.levelCoins = 0;
     this.levelXp = 0;
     this.isLevelFinished = false;
@@ -116,6 +118,7 @@ export default class GameScene extends Phaser.Scene {
     group.add(enemy);
 
     enemy.on('enemy-defeated', (defeatedEnemy) => {
+      this.retentionSystem.recordEnemyDefeated(1);
       this.dropRewards(defeatedEnemy);
     });
 
@@ -229,6 +232,7 @@ export default class GameScene extends Phaser.Scene {
         this.levelXp += collectible.value;
       } else {
         this.levelCoins += collectible.value;
+        this.retentionSystem.recordCoinsCollected(collectible.value);
       }
 
       collectible.destroy();
@@ -319,6 +323,7 @@ export default class GameScene extends Phaser.Scene {
     if (!this.player.spendEnergy(config.energyCost)) return;
 
     this.player.canUseSpecial = false;
+    this.retentionSystem.recordSpecialUse(1);
     this.combatSystem.createWindOrb(this.player, this.projectiles);
     this.cameras.main.shake(120, 0.0035);
 
@@ -374,6 +379,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.bossRewardApplied) return;
 
     this.bossRewardApplied = true;
+    this.retentionSystem.recordBossDefeated(1);
     this.levelCoins += GAME_DATA.boss.rewards.coins;
     this.levelXp += GAME_DATA.boss.rewards.xp;
     this.cameras.main.shake(240, 0.006);
@@ -408,6 +414,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (bossDefeated) {
       this.isLevelFinished = true;
+      this.retentionSystem.recordLevelCompleted({ noDeath: true });
       this.progressionSystem.completeLevel(GAME_DATA.level.name, this.levelCoins, this.levelXp, {
         rareScrolls: 1,
         specialItem: GAME_DATA.boss.rewards.specialItem,
