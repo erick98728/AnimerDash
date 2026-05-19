@@ -1,4 +1,4 @@
-import { GAME_DATA } from '../data/gameData.js';
+import { AUDIO_KEYS } from './AudioSystem.js';
 
 export default class CollisionSystem {
   constructor(scene) {
@@ -11,9 +11,11 @@ export default class CollisionSystem {
     scene.physics.add.overlap(scene.player, scene.collectibles, (_player, collectible) => {
       if (collectible.type === 'xp') {
         scene.levelXp += collectible.value;
+        scene.audioSystem?.playSfx(AUDIO_KEYS.sfx.xp);
       } else {
         scene.levelCoins += collectible.value;
         scene.retentionSystem.recordCoinsCollected(collectible.value);
+        scene.audioSystem?.playSfx(AUDIO_KEYS.sfx.coin);
       }
 
       collectible.destroy();
