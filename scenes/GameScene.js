@@ -3,6 +3,7 @@ import Enemy from '../entities/Enemy.js';
 import BossHudSystem from '../systems/BossHudSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import CombatSystem from '../systems/CombatSystem.js';
+import DialogueSystem from '../systems/DialogueSystem.js';
 import DropSystem from '../systems/DropSystem.js';
 import HudSystem from '../systems/HudSystem.js';
 import InputSystem from '../systems/InputSystem.js';
@@ -33,6 +34,7 @@ export default class GameScene extends Phaser.Scene {
     this.levelXp = 0;
     this.isLevelFinished = false;
     this.bossRewardApplied = false;
+    this.tutorialFlags = new Set();
 
     this.createLevel();
     this.createPlayer();
@@ -40,6 +42,7 @@ export default class GameScene extends Phaser.Scene {
     this.createCollectibles();
     this.createCombatGroups();
     this.createSystems();
+    this.startOpeningDialogues();
 
     this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
   }
@@ -101,7 +104,18 @@ export default class GameScene extends Phaser.Scene {
     this.pauseSystem = new PauseSystem(this, this.inputSystem);
     this.collisionSystem = new CollisionSystem(this);
     this.touchControlsSystem = new TouchControlsSystem(this, this.inputSystem);
+    this.dialogueSystem = new DialogueSystem(this);
     this.collisionSystem.create();
+  }
+
+  startOpeningDialogues() {
+    if (this.levelData.id === 'level-01') {
+      this.time.delayedCall(260, () => this.dialogueSystem.start('tutorialMove', { once: true }));
+    }
+
+    if (this.levelData.id === 'boss-prototype') {
+      this.time.delayedCall(260, () => this.dialogueSystem.start('kaizenIntro', { once: true }));
+    }
   }
 
   addEnemy(enemy, isBoss = false) {
@@ -150,10 +164,30 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (this.isLevelFinished) return;
 
+    this.dialogueSystem.update();
     this.pauseSystem.update(this.isLevelFinished);
     if (this.pauseSystem.isPaused()) return;
 
-    this.player.update(this.inputSystem, delta);
+    const isDialogueBlocking = this.dialogueSystem.isBlockingPlayer();
+
+    if (!isDialogueBlocking) {
+      this.player.update(this.inputSystem, delta);
+      this.updateTutorialTriggers();
+
+      if (this.inputSystem.wantsAttack()) {
+        this.handlePlayerComboAttack();
+      }
+
+      if (this.inputSystem.wantsProjectile()) {
+        this.handlePlayerShuriken();
+      }
+
+      if (this.inputSystem.wantsSpecial()) {
+        this.handlePlayerSpecial();
+      }
+    } else {
+      this.player.setVelocityX(0);
+    }
 
     this.enemies.children.iterate((enemy) => enemy?.update(this.player, this.enemyProjectiles));
     this.bosses.children.iterate((boss) => boss?.update(this.player, {
@@ -162,21 +196,29 @@ export default class GameScene extends Phaser.Scene {
     }));
     this.collectibles.children.iterate((collectible) => collectible?.update(time));
 
-    if (this.inputSystem.wantsAttack()) {
-      this.handlePlayerComboAttack();
-    }
-
-    if (this.inputSystem.wantsProjectile()) {
-      this.handlePlayerShuriken();
-    }
-
-    if (this.inputSystem.wantsSpecial()) {
-      this.handlePlayerSpecial();
-    }
-
     this.hudSystem.update(this.player, this.levelCoins, this.levelXp);
     this.bossHudSystem.update(this.boss);
     this.checkLevelState();
+  }
+
+  updateTutorialTriggers() {
+    if (this.levelData.id !== 'level-01') return;
+    if (this.dialogueSystem.isActive) return;
+
+    const triggers = [
+      { id: 'tutorialJump', condition: () => this.player.x > 250 },
+      { id: 'tutorialAttack', condition: () => this.player.x > 380 },
+      { id: 'tutorialDash', condition: () => this.player.x > 560 },
+      { id: 'tutorialSpecial', condition: () => this.player.x > 820 },
+    ];
+
+    triggers.forEach((trigger) => {
+      if (this.tutorialFlags.has(trigger.id)) return;
+      if (!trigger.condition()) return;
+
+      this.tutorialFlags.add(trigger.id);
+      this.dialogueSystem.start(trigger.id, { once: true });
+    });
   }
 
   handlePlayerComboAttack() {
@@ -240,7 +282,9 @@ export default class GameScene extends Phaser.Scene {
     this.bossRewardApplied = true;
     this.retentionSystem.recordBossDefeated(1);
     this.cameras.main.shake(240, 0.006);
-    this.finishLevel({ defeatedBoss: true });
+    this.dialogueSystem.start('kaizenDefeated', {
+      onComplete: () => this.finishLevel({ defeatedBoss: true }),
+    });
   }
 
   checkLevelState() {
