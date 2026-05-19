@@ -43,8 +43,7 @@ export default class PauseSystem {
       .setStrokeStyle(2, 0x7be7ff, 0.9)
       .setScrollFactor(0)
       .setDepth(2201)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
+      .setVisible(false);
 
     const text = this.scene.add.text(x, y, label, {
       fontFamily: 'Arial',
@@ -93,7 +92,6 @@ export default class PauseSystem {
   }
 
   resumeFromFocus() {
-    // Mantém o overlay aberto. O jogador decide quando continuar.
     if (!this.isPausedByFocus) return;
     this.showOverlay(true, 'Toque em Continuar para retomar com segurança.');
   }
@@ -133,6 +131,9 @@ export default class PauseSystem {
   }
 
   restartLevel() {
+    this.isPausedByFocus = false;
+    this.isManuallyPaused = false;
+    this.showOverlay(false);
     this.scene.physics.resume();
     this.scene.tweens.resumeAll();
     this.scene.scene.restart({ levelId: this.scene.levelData?.id ?? this.scene.selectedLevelId });
@@ -147,6 +148,9 @@ export default class PauseSystem {
   }
 
   returnToMenu() {
+    this.isPausedByFocus = false;
+    this.isManuallyPaused = false;
+    this.showOverlay(false);
     this.scene.physics.resume();
     this.scene.tweens.resumeAll();
     this.scene.scene.start('MenuScene');
@@ -160,6 +164,12 @@ export default class PauseSystem {
     this.buttons.forEach(({ button, text }) => {
       button.setVisible(isVisible);
       text.setVisible(isVisible);
+
+      if (isVisible) {
+        button.setInteractive({ useHandCursor: true });
+      } else {
+        button.disableInteractive();
+      }
     });
   }
 
