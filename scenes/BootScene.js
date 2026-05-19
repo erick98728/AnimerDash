@@ -2,6 +2,7 @@ import Player from '../entities/Player.js';
 import Enemy from '../entities/Enemy.js';
 import Boss from '../entities/Boss.js';
 import Projectile from '../entities/Projectile.js';
+import EnemyProjectile from '../entities/EnemyProjectile.js';
 import Collectible from '../entities/Collectible.js';
 import { COLORS } from '../data/gameData.js';
 
@@ -20,6 +21,7 @@ export default class BootScene extends Phaser.Scene {
     Enemy.createTexture(this);
     Boss.createTexture(this);
     Projectile.createTexture(this);
+    EnemyProjectile.createTexture(this);
     Collectible.createTexture(this);
     this.createWorldTextures();
 
