@@ -24,6 +24,25 @@ export const LEVEL_BALANCE = [
   { level: 20, xpRequired: 5180, averageCoinsPerLevel: 82, baseUpgradeCost: 525, recommendedHealth: 325, recommendedDamage: 70 },
 ];
 
+// Valores centrais de combate. Ajuste aqui para balancear o jogo sem procurar números espalhados.
+export const COMBAT_BALANCE = {
+  combo: {
+    attackUpgradeScaling: 1,
+    maxAttackBonusPerHit: 28,
+  },
+  shuriken: {
+    upgradeDamagePerLevel: 3,
+    maxUpgradeDamageBonus: 24,
+    cooldownReductionPerLevel: 20,
+    minimumCooldown: 180,
+  },
+  special: {
+    attackUpgradeScaling: 0.35,
+    shurikenUpgradeScaling: 0.2,
+    maxUpgradeDamageBonus: 20,
+  },
+};
+
 export const UPGRADE_DEFINITIONS = {
   maxHealth: {
     label: 'Vida máxima',
