@@ -95,6 +95,55 @@ export const GAME_DATA = {
       dropXp: 3,
     },
   },
+  boss: {
+    name: 'Kaizen, o Guardião da Névoa',
+    texture: 'boss-kaizen-placeholder',
+    health: 360,
+    speed: 82,
+    arena: {
+      left: 1060,
+      right: 1560,
+      floorY: 510,
+    },
+    rewards: {
+      coins: 40,
+      xp: 35,
+      specialItem: 'Máscara da Névoa Clara',
+      unlockedSkill: 'Passo Nebular',
+    },
+    phases: [
+      {
+        id: 1,
+        healthBelow: 1,
+        pattern: ['melee', 'ranged', 'melee', 'area'],
+        actionDelay: 900,
+        mistBladeCount: 1,
+        summonCount: 0,
+      },
+      {
+        id: 2,
+        healthBelow: 0.66,
+        pattern: ['ranged', 'summon', 'melee', 'area'],
+        actionDelay: 760,
+        mistBladeCount: 2,
+        summonCount: 1,
+      },
+      {
+        id: 3,
+        healthBelow: 0.33,
+        pattern: ['area', 'ranged', 'summon', 'melee'],
+        actionDelay: 620,
+        mistBladeCount: 3,
+        summonCount: 2,
+      },
+    ],
+    attacks: {
+      melee: { name: 'Corte da Névoa', damage: 18, range: 76, width: 88, height: 52, warningTime: 280 },
+      ranged: { name: 'Lâmina de Névoa', damage: 14, speed: 330, warningTime: 320 },
+      area: { name: 'Explosão Nebular', damage: 24, radius: 92, warningTime: 700 },
+      summon: { name: 'Chamado da Bruma', enemyType: 'weakNinja' },
+    },
+  },
   progression: {
     startingCoins: 0,
     upgradeCosts: {
@@ -106,7 +155,7 @@ export const GAME_DATA = {
   level: {
     name: 'Caminho dos Sussurros',
     targetCoins: 8,
-    bossHealth: 140,
+    bossHealth: 360,
   },
 };
 
@@ -121,6 +170,7 @@ export const COLORS = {
   enemyHeavy: 0x8a95a8,
   enemyShadow: 0x32224f,
   boss: 0xff5c8a,
+  bossMist: 0xb9a7ff,
   projectile: 0xffd166,
   special: 0x9fffd0,
   collectible: 0xffd166,
