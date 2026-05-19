@@ -1,8 +1,12 @@
+import SaveSystem from './SaveSystem.js';
+
 export default class HudSystem {
   constructor(scene, levelSystem) {
     this.scene = scene;
     this.levelSystem = levelSystem;
+    this.settings = SaveSystem.getSettings();
     this.create();
+    this.applySettings();
   }
 
   create() {
@@ -31,11 +35,22 @@ export default class HudSystem {
     }).setScrollFactor(0);
   }
 
+  isMobileScreen() {
+    return this.scene.sys.game.device.input.touch || window.innerWidth <= 940;
+  }
+
+  applySettings() {
+    this.settings = SaveSystem.getSettings();
+    const hideHelp = this.isMobileScreen() && this.settings.hideMobileGameplayHelp;
+    this.helpText.setVisible(!hideHelp);
+  }
+
   update(player, levelCoins, levelXp) {
     const reward = this.levelSystem.getReward();
 
     this.healthText.setText(`Vida: ${player.health}/${player.maxHealth}`);
     this.energyText.setText(`Energia: ${Math.floor(player.energy)}/${player.maxEnergy}`);
     this.coinText.setText(`Coletado: ${levelCoins} moedas | XP: ${levelXp} | Recompensa: +${reward.coins ?? 0} moedas`);
+    this.applySettings();
   }
 }
