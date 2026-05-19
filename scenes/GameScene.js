@@ -1,4 +1,5 @@
 import Player from '../entities/Player.js';
+import Enemy from '../entities/Enemy.js';
 import Collectible from '../entities/Collectible.js';
 import CombatSystem from '../systems/CombatSystem.js';
 import InputSystem from '../systems/InputSystem.js';
@@ -99,7 +100,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnBossMinion(x, y) {
-    const minion = new this.enemies.classType(this, x, y, 'weakNinja', {
+    const minion = new Enemy(this, x, y, 'weakNinja', {
       health: 28,
       damage: 8,
       speed: 120,
