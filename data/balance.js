@@ -72,8 +72,12 @@ export const UPGRADE_DEFINITIONS = {
   },
 };
 
+export function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function getBalanceForLevel(level) {
-  const safeLevel = Phaser?.Math?.Clamp ? Phaser.Math.Clamp(level, 1, 20) : Math.min(Math.max(level, 1), 20);
+  const safeLevel = clamp(level, 1, 20);
   return LEVEL_BALANCE.find((entry) => entry.level === safeLevel) ?? LEVEL_BALANCE[0];
 }
 
