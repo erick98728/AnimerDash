@@ -1,9 +1,8 @@
 import Player from '../entities/Player.js';
-import Enemy from '../entities/Enemy.js';
-import Boss from '../entities/Boss.js';
 import Collectible from '../entities/Collectible.js';
 import CombatSystem from '../systems/CombatSystem.js';
 import InputSystem from '../systems/InputSystem.js';
+import LevelSystem from '../systems/LevelSystem.js';
 import ProgressionSystem from '../systems/ProgressionSystem.js';
 import RetentionSystem from '../systems/RetentionSystem.js';
 import TouchControlsSystem from '../systems/TouchControlsSystem.js';
@@ -14,14 +13,17 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene');
   }
 
-  create() {
-    this.add.image(480, 270, 'mist-bg-placeholder');
-    this.physics.world.setBounds(0, 0, 1700, 540);
+  init(data = {}) {
+    this.selectedLevelId = data.levelId ?? data.levelIndex ?? 'level-01';
+  }
 
+  create() {
     this.combatSystem = new CombatSystem(this);
     this.inputSystem = new InputSystem(this);
+    this.levelSystem = new LevelSystem(this);
     this.progressionSystem = new ProgressionSystem();
     this.retentionSystem = new RetentionSystem();
+    this.levelData = this.levelSystem.getLevel(this.selectedLevelId);
     this.levelCoins = 0;
     this.levelXp = 0;
     this.isLevelFinished = false;
@@ -39,52 +41,19 @@ export default class GameScene extends Phaser.Scene {
     this.createMobileControls();
     this.setupFocusPause();
 
-    this.cameras.main.setBounds(0, 0, 1700, 540);
     this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
   }
 
   createLevel() {
-    this.platforms = this.physics.add.staticGroup();
-
-    const platformData = [
-      { x: 160, y: 510, scaleX: 2.2 },
-      { x: 470, y: 430, scaleX: 1.2 },
-      { x: 720, y: 350, scaleX: 1.1 },
-      { x: 980, y: 450, scaleX: 1.4 },
-      { x: 1310, y: 510, scaleX: 3.6 },
-    ];
-
-    platformData.forEach((platform) => {
-      const sprite = this.platforms.create(platform.x, platform.y, 'platform-placeholder');
-      sprite.setScale(platform.scaleX, 1).refreshBody();
-    });
-
-    this.createBossArena();
-
-    this.add.text(34, 34, `${GAME_DATA.level.name} - Arena de Kaizen`, {
-      fontFamily: 'Arial',
-      fontSize: '18px',
-      color: '#9bb6c8',
-    }).setScrollFactor(0);
-  }
-
-  createBossArena() {
-    const { left, right } = GAME_DATA.boss.arena;
-
-    this.add.rectangle((left + right) / 2, 500, right - left, 10, 0x7be7ff, 0.12);
-    this.add.rectangle(left, 440, 10, 140, 0x5d3fd3, 0.35);
-    this.add.rectangle(right, 440, 10, 140, 0x5d3fd3, 0.35);
-
-    this.add.text((left + right) / 2, 392, 'Arena do Guardião da Névoa', {
-      fontFamily: 'Arial',
-      fontSize: '18px',
-      color: '#b9a7ff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    const builtLevel = this.levelSystem.build(this.levelData);
+    this.platforms = builtLevel.platforms;
+    this.obstacles = builtLevel.obstacles;
+    this.endPoint = builtLevel.endPoint;
   }
 
   createPlayer() {
-    this.player = new Player(this, 90, 420);
+    const spawn = this.levelSystem.createPlayerSpawn();
+    this.player = new Player(this, spawn.x, spawn.y);
     this.applyProgressionStatsToPlayer();
     this.physics.add.collider(this.player, this.platforms);
   }
@@ -107,12 +76,7 @@ export default class GameScene extends Phaser.Scene {
     this.bosses = this.physics.add.group();
     this.enemyProjectiles = this.physics.add.group();
 
-    this.addEnemy(new Enemy(this, 410, 450, 'weakNinja'));
-    this.addEnemy(new Enemy(this, 650, 370, 'kunaiShooter'));
-    this.addEnemy(new Enemy(this, 930, 390, 'shadowNinja'));
-
-    this.boss = new Boss(this, 1340, 430);
-    this.addEnemy(this.boss, true);
+    this.boss = this.levelSystem.createEnemies(this.addEnemy.bind(this));
 
     this.physics.add.collider(this.enemies, this.platforms);
     this.physics.add.collider(this.bosses, this.platforms);
@@ -135,7 +99,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnBossMinion(x, y) {
-    const minion = new Enemy(this, x, y, 'weakNinja', {
+    const minion = new this.enemies.classType(this, x, y, 'weakNinja', {
       health: 28,
       damage: 8,
       speed: 120,
@@ -163,36 +127,23 @@ export default class GameScene extends Phaser.Scene {
 
   createCollectibles() {
     this.collectibles = this.physics.add.group();
-
-    const coinPositions = [
-      [260, 455],
-      [470, 380],
-      [720, 300],
-      [980, 400],
-      [1160, 455],
-      [1420, 455],
-      [1530, 455],
-    ];
-
-    coinPositions.forEach(([x, y]) => {
-      this.collectibles.add(new Collectible(this, x, y, 1, 'coin'));
-    });
+    this.levelSystem.createCollectibles(this.collectibles);
   }
 
   createHud() {
-    this.healthText = this.add.text(24, 68, '', {
+    this.healthText = this.add.text(24, 78, '', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#f2fbff',
     }).setScrollFactor(0);
 
-    this.energyText = this.add.text(24, 94, '', {
+    this.energyText = this.add.text(24, 104, '', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#7be7ff',
     }).setScrollFactor(0);
 
-    this.coinText = this.add.text(24, 120, '', {
+    this.coinText = this.add.text(24, 130, '', {
       fontFamily: 'Arial',
       fontSize: '18px',
       color: '#ffd166',
@@ -206,6 +157,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createBossHud() {
+    if (!this.levelSystem.requiresBossDefeat()) {
+      this.bossNameText = null;
+      this.bossBarBack = null;
+      this.bossBarFill = null;
+      this.bossPhaseText = null;
+      return;
+    }
+
     this.bossNameText = this.add.text(480, 18, GAME_DATA.boss.name, {
       fontFamily: 'Arial',
       fontSize: '18px',
@@ -332,10 +291,39 @@ export default class GameScene extends Phaser.Scene {
       projectile.destroy();
     });
 
+    this.physics.add.overlap(this.player, this.obstacles, (player, obstacle) => {
+      this.handleObstacleOverlap(player, obstacle);
+    });
+
+    if (this.endPoint) {
+      this.physics.add.overlap(this.player, this.endPoint, () => {
+        this.handleEndPointReached();
+      });
+    }
+
     this.physics.add.overlap(this.meleeHitboxes, this.enemies, this.handleHitboxOverlap, undefined, this);
     this.physics.add.overlap(this.meleeHitboxes, this.bosses, this.handleHitboxOverlap, undefined, this);
     this.physics.add.overlap(this.projectiles, this.enemies, this.handleProjectileOverlap, undefined, this);
     this.physics.add.overlap(this.projectiles, this.bosses, this.handleProjectileOverlap, undefined, this);
+  }
+
+  handleObstacleOverlap(player, obstacle) {
+    if (!obstacle.active || this.isLevelFinished) return;
+
+    if (obstacle.type === 'pit') {
+      player.takeDamage(player.maxHealth);
+      return;
+    }
+
+    player.takeDamage(obstacle.damage ?? 10);
+  }
+
+  handleEndPointReached() {
+    if (this.isLevelFinished) return;
+    if (this.levelSystem.requiresBossDefeat() && this.boss?.active && !this.boss.isDefeated) return;
+    if (this.levelSystem.requiresAllEnemiesDefeated() && this.enemies.countActive(true) > 0) return;
+
+    this.finishLevel({ defeatedBoss: false });
   }
 
   update(time, delta) {
@@ -425,7 +413,7 @@ export default class GameScene extends Phaser.Scene {
 
     hitbox.alreadyHit.add(enemy);
     this.combatSystem.applyDamage(enemy, hitbox.damage, hitbox);
-    hitbox.owner?.gainEnergy?.(GAME_DATA.player.combat.comboSteps[0].energyGain ?? 5);
+    hitbox.owner?.gainEnergy?.(hitbox.energyGain ?? GAME_DATA.player.combat.comboSteps[0].energyGain ?? 5);
   }
 
   handleProjectileOverlap(projectile, enemy) {
@@ -467,18 +455,20 @@ export default class GameScene extends Phaser.Scene {
 
     this.bossRewardApplied = true;
     this.retentionSystem.recordBossDefeated(1);
-    this.levelCoins += GAME_DATA.boss.rewards.coins;
-    this.levelXp += GAME_DATA.boss.rewards.xp;
     this.cameras.main.shake(240, 0.006);
+    this.finishLevel({ defeatedBoss: true });
   }
 
   updateHud() {
+    const reward = this.levelSystem.getReward();
     this.healthText.setText(`Vida: ${this.player.health}/${this.player.maxHealth}`);
     this.energyText.setText(`Energia: ${Math.floor(this.player.energy)}/${this.player.maxEnergy}`);
-    this.coinText.setText(`Moedas: ${this.levelCoins}/${GAME_DATA.level.targetCoins} | XP: ${this.levelXp}`);
+    this.coinText.setText(`Coletado: ${this.levelCoins} moedas | XP: ${this.levelXp} | Recompensa: +${reward.coins ?? 0} moedas`);
   }
 
   updateBossHud() {
+    if (!this.levelSystem.requiresBossDefeat()) return;
+
     if (!this.boss || !this.boss.active) {
       this.bossBarFill.width = 0;
       this.bossPhaseText.setText('Kaizen derrotado');
@@ -493,28 +483,33 @@ export default class GameScene extends Phaser.Scene {
   checkLevelState() {
     if (this.player.isDefeated) {
       this.isLevelFinished = true;
-      this.scene.start('GameOverScene', { coins: this.levelCoins });
-      return;
+      this.scene.start('GameOverScene', { coins: this.levelCoins, levelId: this.levelData.id });
     }
+  }
 
-    const bossDefeated = !this.boss.active || this.boss.isDefeated;
+  finishLevel({ defeatedBoss = false } = {}) {
+    if (this.isLevelFinished) return;
 
-    if (bossDefeated) {
-      this.isLevelFinished = true;
-      this.retentionSystem.recordLevelCompleted({ noDeath: true });
-      this.progressionSystem.completeLevel(GAME_DATA.level.name, this.levelCoins, this.levelXp, {
-        rareScrolls: 1,
-        specialItem: GAME_DATA.boss.rewards.specialItem,
-        unlockedSkill: GAME_DATA.boss.rewards.unlockedSkill,
-      });
-      this.scene.start('VictoryScene', {
-        coins: this.levelCoins,
-        xp: this.levelXp,
-        levelName: GAME_DATA.level.name,
-        defeatedBoss: GAME_DATA.boss.name,
-        specialItem: GAME_DATA.boss.rewards.specialItem,
-        unlockedSkill: GAME_DATA.boss.rewards.unlockedSkill,
-      });
-    }
+    this.isLevelFinished = true;
+    const reward = this.levelSystem.getReward();
+    const earnedCoins = this.levelCoins + (reward.coins ?? 0);
+    const earnedXp = this.levelXp + (reward.xp ?? 0);
+
+    this.retentionSystem.recordLevelCompleted({ noDeath: !this.player.isDefeated });
+    this.progressionSystem.completeLevel(this.levelData.id, earnedCoins, earnedXp, {
+      rareScrolls: reward.rareScrolls ?? 0,
+      specialItem: reward.specialItem,
+      unlockedSkill: reward.unlockedSkill,
+    });
+
+    this.scene.start('VictoryScene', {
+      coins: earnedCoins,
+      xp: earnedXp,
+      levelName: this.levelData.name,
+      levelId: this.levelData.id,
+      defeatedBoss: defeatedBoss ? GAME_DATA.boss.name : null,
+      specialItem: reward.specialItem,
+      unlockedSkill: reward.unlockedSkill,
+    });
   }
 }
