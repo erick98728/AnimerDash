@@ -10,21 +10,54 @@ export default class PauseSystem {
   }
 
   createOverlay() {
-    this.pauseOverlay = this.scene.add.rectangle(480, 270, 960, 540, 0x02050a, 0.72)
+    this.pauseOverlay = this.scene.add.rectangle(480, 270, 960, 540, 0x02050a, 0.78)
       .setScrollFactor(0)
-      .setDepth(2000)
+      .setDepth(2200)
       .setVisible(false);
 
-    this.pauseText = this.scene.add.text(480, 270, 'Jogo pausado\nToque ou volte para a aba para continuar', {
+    this.titleText = this.scene.add.text(480, 150, 'Jogo pausado', {
       fontFamily: 'Arial',
-      fontSize: '24px',
+      fontSize: '34px',
       color: '#f2fbff',
       align: 'center',
       fontStyle: 'bold',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(2001).setVisible(false);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(2201).setVisible(false);
 
-    this.pauseOverlay.setInteractive({ useHandCursor: true });
-    this.pauseOverlay.on('pointerdown', () => this.resumeGame());
+    this.reasonText = this.scene.add.text(480, 188, '', {
+      fontFamily: 'Arial',
+      fontSize: '15px',
+      color: '#9bb6c8',
+      align: 'center',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(2201).setVisible(false);
+
+    this.buttons = [
+      this.createButton(480, 240, 'Continuar', () => this.resumeGame()),
+      this.createButton(480, 296, 'Reiniciar fase', () => this.restartLevel()),
+      this.createButton(480, 352, 'Configurações', () => this.openSettings()),
+      this.createButton(480, 408, 'Voltar ao menu', () => this.returnToMenu()),
+    ];
+  }
+
+  createButton(x, y, label, callback) {
+    const button = this.scene.add.rectangle(x, y, 280, 42, 0x18324a, 0.96)
+      .setStrokeStyle(2, 0x7be7ff, 0.9)
+      .setScrollFactor(0)
+      .setDepth(2201)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+
+    const text = this.scene.add.text(x, y, label, {
+      fontFamily: 'Arial',
+      fontSize: '18px',
+      color: '#f2fbff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(2202).setVisible(false);
+
+    button.on('pointerover', () => button.setFillStyle(0x24506f, 0.96));
+    button.on('pointerout', () => button.setFillStyle(0x18324a, 0.96));
+    button.on('pointerdown', callback);
+
+    return { button, text };
   }
 
   registerFocusEvents() {
@@ -56,12 +89,13 @@ export default class PauseSystem {
 
     this.isPausedByFocus = true;
     this.pausePhysicsAndTweens();
-    this.showOverlay(true);
+    this.showOverlay(true, 'A pausa automática foi ativada porque o jogo perdeu o foco.');
   }
 
   resumeFromFocus() {
+    // Mantém o overlay aberto. O jogador decide quando continuar.
     if (!this.isPausedByFocus) return;
-    this.resumeGame();
+    this.showOverlay(true, 'Toque em Continuar para retomar com segurança.');
   }
 
   toggleManualPause() {
@@ -70,10 +104,18 @@ export default class PauseSystem {
     this.isManuallyPaused = !this.isManuallyPaused;
     if (this.isManuallyPaused) {
       this.pausePhysicsAndTweens();
-      this.showOverlay(true);
+      this.showOverlay(true, 'Escolha uma opção para continuar.');
     } else {
       this.resumeGame();
     }
+  }
+
+  pauseFromButton() {
+    if (this.scene.isLevelFinished || this.isPaused()) return;
+
+    this.isManuallyPaused = true;
+    this.pausePhysicsAndTweens();
+    this.showOverlay(true, 'Escolha uma opção para continuar.');
   }
 
   pausePhysicsAndTweens() {
@@ -90,9 +132,35 @@ export default class PauseSystem {
     this.showOverlay(false);
   }
 
-  showOverlay(isVisible) {
+  restartLevel() {
+    this.scene.physics.resume();
+    this.scene.tweens.resumeAll();
+    this.scene.scene.restart({ levelId: this.scene.levelData?.id ?? this.scene.selectedLevelId });
+  }
+
+  openSettings() {
+    this.scene.scene.launch('SettingsScene', {
+      returnScene: this.scene.scene.key,
+      openedFromPause: true,
+    });
+    this.scene.scene.bringToTop('SettingsScene');
+  }
+
+  returnToMenu() {
+    this.scene.physics.resume();
+    this.scene.tweens.resumeAll();
+    this.scene.scene.start('MenuScene');
+  }
+
+  showOverlay(isVisible, reason = '') {
     this.pauseOverlay?.setVisible(isVisible);
-    this.pauseText?.setVisible(isVisible);
+    this.titleText?.setVisible(isVisible);
+    this.reasonText?.setVisible(isVisible).setText(reason);
+
+    this.buttons.forEach(({ button, text }) => {
+      button.setVisible(isVisible);
+      text.setVisible(isVisible);
+    });
   }
 
   isPaused() {
