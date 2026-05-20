@@ -29,9 +29,9 @@ export default class TouchControlsSystem {
     const aspect = width / height;
 
     if (height <= 220) return 0.62;
-    if (aspect >= 2.15) return 0.78; // 19.5:9 e 20:9
-    if (aspect >= 1.95) return 0.84; // 18:9
-    if (aspect >= 1.72) return 0.9; // 16:9
+    if (aspect >= 2.15) return 0.78;
+    if (aspect >= 1.95) return 0.84;
+    if (aspect >= 1.72) return 0.9;
     return 0.82;
   }
 
@@ -185,6 +185,13 @@ export default class TouchControlsSystem {
       circle.setVisible(this.isVisible);
       label.setVisible(this.isVisible);
       label.setAlpha(this.settings.touchControlsOpacity >= 0.45 ? 1 : 0.75);
+
+      if (this.isVisible) {
+        circle.setInteractive({ useHandCursor: true });
+      } else {
+        circle.disableInteractive();
+        this.inputSystem.releaseAllTouchInputs?.();
+      }
     });
 
     this.updateLayout();
