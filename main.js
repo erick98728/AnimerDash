@@ -7,6 +7,7 @@ import RetentionScene from './scenes/RetentionScene.js';
 import SettingsScene from './scenes/SettingsScene.js';
 import GameOverScene from './scenes/GameOverScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
+import FullscreenSystem from './systems/FullscreenSystem.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -55,4 +56,5 @@ const config = {
 
 window.addEventListener('load', () => {
   window.game = new Phaser.Game(config);
+  FullscreenSystem.install(window.game);
 });
