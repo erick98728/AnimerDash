@@ -1,6 +1,7 @@
 import Enemy from '../entities/Enemy.js';
 import Boss from '../entities/Boss.js';
 import Collectible from '../entities/Collectible.js';
+import { ASSET_MANIFEST, getTextureKey } from '../data/assetsManifest.js';
 import { GAME_DATA } from '../data/gameData.js';
 import { getFirstLevel, getLevelById, LEVELS } from '../data/levels.js';
 
@@ -31,6 +32,7 @@ export default class LevelSystem {
       objective: `derrotar ${GAME_DATA.boss.name}`,
       difficulty: 10,
       isBossLevel: true,
+      backgroundKey: 'bossArena',
       reward: {
         coins: GAME_DATA.boss.rewards.coins,
         xp: GAME_DATA.boss.rewards.xp,
@@ -93,10 +95,41 @@ export default class LevelSystem {
     this.scene.cameras.main.setBounds(0, 0, world.width, world.height);
   }
 
+  getBackgroundAsset(levelData) {
+    if (levelData.backgroundKey && ASSET_MANIFEST.backgrounds[levelData.backgroundKey]) {
+      return ASSET_MANIFEST.backgrounds[levelData.backgroundKey];
+    }
+
+    if (levelData.isBossLevel || levelData.boss) {
+      return ASSET_MANIFEST.backgrounds.bossArena;
+    }
+
+    const theme = `${levelData.visualTheme ?? ''}`.toLowerCase();
+    if (theme.includes('vila')) {
+      return ASSET_MANIFEST.backgrounds.ninjaVillage;
+    }
+
+    return ASSET_MANIFEST.backgrounds.mistForest;
+  }
+
+  getPlatformTextureKey() {
+    // Ainda não usa tilemap complexo. Esta função deixa as plataformas prontas
+    // para uma próxima etapa com tileset real, mantendo o placeholder atual.
+    return getTextureKey(this.scene, ASSET_MANIFEST.tilesets.forest, 'platform-placeholder');
+  }
+
   createBackground(levelData) {
     const world = levelData.world ?? { width: 960, height: 540 };
-    const background = this.scene.add.image(480, 270, 'mist-bg-placeholder');
+    const backgroundAsset = this.getBackgroundAsset(levelData);
+    const backgroundKey = getTextureKey(this.scene, backgroundAsset, 'mist-bg-placeholder');
+    const background = this.scene.add.image(480, 270, backgroundKey);
     background.setScrollFactor(0.15);
+
+    const texture = this.scene.textures.get(backgroundKey);
+    const source = texture?.getSourceImage?.();
+    const scaleX = source?.width ? 960 / source.width : 1;
+    const scaleY = source?.height ? 540 / source.height : 1;
+    background.setScale(Math.max(scaleX, scaleY));
 
     const title = this.scene.add.text(34, 34, `${levelData.name} | Dif. ${levelData.difficulty ?? '-'}`, {
       fontFamily: 'Arial',
@@ -116,9 +149,10 @@ export default class LevelSystem {
 
   createPlatforms(platformData) {
     this.platforms = this.scene.physics.add.staticGroup();
+    const platformTextureKey = this.getPlatformTextureKey();
 
     platformData.forEach((platform) => {
-      const sprite = this.platforms.create(platform.x, platform.y, 'platform-placeholder');
+      const sprite = this.platforms.create(platform.x, platform.y, platform.textureKey ?? platformTextureKey);
       sprite.setScale(platform.scaleX ?? 1, platform.scaleY ?? 1).refreshBody();
     });
 
