@@ -1,4 +1,5 @@
 import SaveSystem from '../systems/SaveSystem.js';
+import FullscreenSystem from '../systems/FullscreenSystem.js';
 
 export default class SettingsScene extends Phaser.Scene {
   constructor() {
@@ -14,24 +15,36 @@ export default class SettingsScene extends Phaser.Scene {
     this.settings = SaveSystem.getSettings();
 
     this.add.rectangle(480, 270, 960, 540, 0x02050a, 0.86).setDepth(2500);
-    this.add.rectangle(480, 270, 660, 454, 0x07111f, 0.96)
+    this.add.rectangle(480, 270, 680, 480, 0x07111f, 0.96)
       .setStrokeStyle(3, 0x7be7ff, 0.75)
       .setDepth(2501);
 
-    this.add.text(480, 70, 'Configurações', {
+    this.add.text(480, 52, 'Configurações', {
       fontFamily: 'Arial',
-      fontSize: '32px',
+      fontSize: '30px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(2502);
 
-    this.createVolumeControl(480, 128, 'Volume da música', 'musicVolume');
-    this.createVolumeControl(480, 190, 'Volume dos efeitos', 'sfxVolume');
-    this.createToggle(480, 250, 'Botões mobile', 'showTouchControls');
-    this.createVolumeControl(480, 312, 'Opacidade dos botões', 'touchControlsOpacity', 0.25, 1);
-    this.createToggle(480, 374, 'Ocultar ajuda no mobile', 'hideMobileGameplayHelp', 'Ocultar', 'Mostrar');
+    this.statusText = this.add.text(480, 502, '', {
+      fontFamily: 'Arial',
+      fontSize: '13px',
+      color: '#ffd166',
+      align: 'center',
+    }).setOrigin(0.5).setDepth(2503);
 
-    this.createButton(480, 464, 'Voltar', () => this.closeSettings());
+    this.createVolumeControl(480, 104, 'Volume da música', 'musicVolume');
+    this.createVolumeControl(480, 164, 'Volume dos efeitos', 'sfxVolume');
+    this.createToggle(480, 224, 'Botões mobile', 'showTouchControls');
+    this.createVolumeControl(480, 284, 'Opacidade dos botões', 'touchControlsOpacity', 0.25, 1);
+    this.createToggle(480, 344, 'Ocultar ajuda no mobile', 'hideMobileGameplayHelp', 'Ocultar', 'Mostrar');
+
+    this.createButton(352, 436, 'Tela cheia', async () => {
+      const result = await FullscreenSystem.toggle();
+      this.showStatus(result.message, result.ok);
+    }, 210, 40);
+
+    this.createButton(608, 436, 'Voltar', () => this.closeSettings(), 210, 40);
   }
 
   createVolumeControl(x, y, label, settingKey, min = 0, max = 1) {
@@ -130,6 +143,17 @@ export default class SettingsScene extends Phaser.Scene {
 
   normalizeValue(value, min, max) {
     return Phaser.Math.Clamp((value - min) / (max - min), 0, 1);
+  }
+
+  showStatus(message, isOk = true) {
+    this.statusText.setColor(isOk ? '#ffd166' : '#ff8fab');
+    this.statusText.setText(message);
+
+    this.time.delayedCall(3200, () => {
+      if (this.statusText?.active) {
+        this.statusText.setText('');
+      }
+    });
   }
 
   applyRuntimeSettings() {
