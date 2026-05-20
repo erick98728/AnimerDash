@@ -8,6 +8,7 @@ export default class DialogueSystem {
     this.currentIndex = 0;
     this.onComplete = null;
     this.triggeredDialogues = new Set();
+    this.lastAdvanceAt = 0;
 
     this.createBox();
     this.registerInputs();
@@ -59,15 +60,24 @@ export default class DialogueSystem {
 
   handlePointerAdvance(pointer) {
     if (!this.isActive) return;
+    if (this.scene.pauseSystem?.isPaused?.()) return;
+    if (!this.isPointerInsideDialogueBox(pointer)) return;
 
-    // Evita que toques nos botões virtuais disparem falas e ação ao mesmo tempo.
-    if (pointer.y < this.scene.scale.height - 170) {
-      this.advance();
-    }
+    this.advance();
+  }
+
+  isPointerInsideDialogueBox(pointer) {
+    const left = 70;
+    const right = this.scene.scale.width - 70;
+    const top = this.scene.scale.height - 178;
+    const bottom = this.scene.scale.height - 38;
+
+    return pointer.x >= left && pointer.x <= right && pointer.y >= top && pointer.y <= bottom;
   }
 
   update() {
     if (!this.isActive) return;
+    if (this.scene.pauseSystem?.isPaused?.()) return;
 
     const wantsAdvance = Phaser.Input.Keyboard.JustDown(this.advanceKeys.space)
       || Phaser.Input.Keyboard.JustDown(this.advanceKeys.enter)
@@ -81,6 +91,7 @@ export default class DialogueSystem {
   start(dialogueId, options = {}) {
     const lines = getDialogue(dialogueId);
     if (!lines.length) return false;
+    if (this.scene.pauseSystem?.isPaused?.()) return false;
 
     if (options.once && this.triggeredDialogues.has(dialogueId)) {
       return false;
@@ -110,6 +121,10 @@ export default class DialogueSystem {
 
   advance() {
     if (!this.isActive) return;
+
+    const now = this.scene.time.now;
+    if (now - this.lastAdvanceAt < 120) return;
+    this.lastAdvanceAt = now;
 
     this.currentIndex += 1;
     if (this.currentIndex >= this.currentLines.length) {
