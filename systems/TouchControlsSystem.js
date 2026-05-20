@@ -28,11 +28,12 @@ export default class TouchControlsSystem {
     const height = this.scene.scale.height;
     const aspect = width / height;
 
-    if (height <= 220) return 0.62;
-    if (aspect >= 2.15) return 0.78;
-    if (aspect >= 1.95) return 0.84;
-    if (aspect >= 1.72) return 0.9;
-    return 0.82;
+    if (height <= 220) return 0.52;
+    if (height <= 320) return 0.62;
+    if (aspect >= 2.15) return 0.72;
+    if (aspect >= 1.95) return 0.8;
+    if (aspect >= 1.72) return 0.86;
+    return 0.8;
   }
 
   getSafeInsets() {
@@ -41,10 +42,20 @@ export default class TouchControlsSystem {
     const isMobile = this.scene.sys.game.device.input.touch || window.innerWidth <= 940;
 
     return {
-      left: isMobile ? Math.max(18, width * 0.025) : 16,
-      right: isMobile ? Math.max(18, width * 0.025) : 16,
-      top: isMobile ? Math.max(18, height * 0.045) : 16,
-      bottom: isMobile ? Math.max(18, height * 0.055) : 16,
+      left: isMobile ? Math.max(16, width * 0.022) : 16,
+      right: isMobile ? Math.max(16, width * 0.022) : 16,
+      top: isMobile ? Math.max(14, height * 0.035) : 16,
+      bottom: isMobile ? Math.max(14, height * 0.035) : 16,
+    };
+  }
+
+  clampButtonPosition(x, y, radius, safe, margin = 6) {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+
+    return {
+      x: Phaser.Math.Clamp(x, safe.left + radius + margin, width - safe.right - radius - margin),
+      y: Phaser.Math.Clamp(y, safe.top + radius + margin, height - safe.bottom - radius - margin),
     };
   }
 
@@ -149,28 +160,29 @@ export default class TouchControlsSystem {
     const playerScreenX = this.scene.player
       ? this.scene.player.x - this.scene.cameras.main.scrollX
       : width * 0.3;
-    const leftClusterX = playerScreenX < width * 0.36 ? safe.left + 58 * scale : safe.left + 80 * scale;
-    const leftBaseY = height - safe.bottom - 48 * scale;
-    const rightActionX = width - safe.right - 82 * scale;
+    const leftClusterX = playerScreenX < width * 0.36 ? safe.left + 56 * scale : safe.left + 76 * scale;
+    const leftBaseY = height - safe.bottom - 54 * scale;
+    const rightActionX = width - safe.right - 86 * scale;
 
     const positions = {
-      pause: { x: width - safe.right - 32 * scale, y: safe.top + 28 * scale, radius: 31 * scale, fontSize: 15 * scale },
-      left: { x: leftClusterX, y: leftBaseY, radius: 51 * scale, fontSize: 24 * scale },
-      right: { x: leftClusterX + 74 * scale, y: leftBaseY, radius: 51 * scale, fontSize: 24 * scale },
-      jump: { x: rightActionX - 132 * scale, y: height - safe.bottom - 58 * scale, radius: 48 * scale, fontSize: 13 * scale },
-      dash: { x: rightActionX - 60 * scale, y: height - safe.bottom - 18 * scale, radius: 43 * scale, fontSize: 13 * scale },
-      attack: { x: rightActionX, y: height - safe.bottom - 92 * scale, radius: 47 * scale, fontSize: 13 * scale },
-      projectile: { x: rightActionX + 42 * scale, y: height - safe.bottom - 27 * scale, radius: 40 * scale, fontSize: 12 * scale },
-      special: { x: rightActionX - 62 * scale, y: height - safe.bottom - 128 * scale, radius: 41 * scale, fontSize: 12 * scale },
+      pause: { x: width - safe.right - 34 * scale, y: safe.top + 30 * scale, radius: 30 * scale, fontSize: 15 * scale },
+      left: { x: leftClusterX, y: leftBaseY, radius: 48 * scale, fontSize: 23 * scale },
+      right: { x: leftClusterX + 72 * scale, y: leftBaseY, radius: 48 * scale, fontSize: 23 * scale },
+      jump: { x: rightActionX - 130 * scale, y: height - safe.bottom - 74 * scale, radius: 44 * scale, fontSize: 12 * scale },
+      dash: { x: rightActionX - 58 * scale, y: height - safe.bottom - 34 * scale, radius: 40 * scale, fontSize: 12 * scale },
+      attack: { x: rightActionX, y: height - safe.bottom - 106 * scale, radius: 43 * scale, fontSize: 12 * scale },
+      projectile: { x: rightActionX + 42 * scale, y: height - safe.bottom - 44 * scale, radius: 37 * scale, fontSize: 11 * scale },
+      special: { x: rightActionX - 62 * scale, y: height - safe.bottom - 140 * scale, radius: 38 * scale, fontSize: 11 * scale },
     };
 
     this.buttons.forEach((button) => {
       const position = positions[button.id];
       if (!position) return;
 
-      button.circle.setPosition(position.x, position.y);
+      const clamped = this.clampButtonPosition(position.x, position.y, position.radius, safe, 8);
+      button.circle.setPosition(clamped.x, clamped.y);
       button.circle.setRadius(position.radius);
-      button.label.setPosition(position.x, position.y);
+      button.label.setPosition(clamped.x, clamped.y);
       button.label.setFontSize(Math.max(10, Math.round(position.fontSize)));
     });
   }
