@@ -28,17 +28,13 @@ const config = {
     },
   },
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
     width: 960,
     height: 540,
     min: {
       width: 320,
       height: 180,
-    },
-    max: {
-      width: 1920,
-      height: 1080,
     },
   },
   scene: [
