@@ -9,28 +9,28 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    // Inicializa retenção no menu para atualizar sequência de login automaticamente.
     this.retentionSystem = new RetentionSystem();
     this.audioSystem = new AudioSystem(this);
     this.audioSystem.playMusic(AUDIO_KEYS.music.menu);
     const loginInfo = this.retentionSystem.getLoginRewardInfo();
 
-    this.add.image(480, 270, 'mist-bg-placeholder');
+    this.menuItems = [];
+    this.background = this.add.image(480, 270, 'mist-bg-placeholder');
 
-    this.add.text(480, 70, GAME_DATA.title, {
+    this.titleText = this.add.text(480, 70, GAME_DATA.title, {
       fontFamily: 'Arial',
       fontSize: '54px',
       color: '#f2fbff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(480, 124, 'Ação ninja 2D original', {
+    this.subtitleText = this.add.text(480, 124, 'Ação ninja 2D original', {
       fontFamily: 'Arial',
       fontSize: '21px',
       color: '#9bb6c8',
     }).setOrigin(0.5);
 
-    this.add.text(480, 158, `Sequência de login: ${loginInfo.streak}/7`, {
+    this.loginText = this.add.text(480, 158, `Sequência de login: ${loginInfo.streak}/7`, {
       fontFamily: 'Arial',
       fontSize: '16px',
       color: '#ffd166',
@@ -44,40 +44,76 @@ export default class MenuScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5);
 
-    this.createButton(480, 216, 'Selecionar fase', () => {
+    this.levelButton = this.createButton(480, 216, 'Selecionar fase', () => {
       this.audioSystem.stopMusic();
       this.scene.start('LevelSelectScene');
     });
 
-    this.createButton(480, 272, 'Melhorias', () => {
+    this.upgradeButton = this.createButton(480, 272, 'Melhorias', () => {
       this.audioSystem.stopMusic();
       this.scene.start('UpgradeScene');
     });
 
-    this.createButton(480, 328, 'Missões e recompensas', () => {
+    this.retentionButton = this.createButton(480, 328, 'Missões e recompensas', () => {
       this.audioSystem.stopMusic();
       this.scene.start('RetentionScene');
     });
 
-    this.createButton(480, 384, 'Configurações', () => {
+    this.settingsButton = this.createButton(480, 384, 'Configurações', () => {
       this.scene.launch('SettingsScene', { returnScene: 'MenuScene' });
       this.scene.bringToTop('SettingsScene');
     });
 
-    this.createButton(480, 440, 'Tela cheia', async () => {
+    this.fullscreenButton = this.createButton(480, 440, 'Tela cheia', async () => {
       const result = await FullscreenSystem.toggle();
       this.showFullscreenStatus(result.message, result.ok);
     });
 
-    this.add.text(480, 520, 'WASD/setas, Espaço, J, K, L, I | Mobile: botões virtuais', {
+    this.helpText = this.add.text(480, 520, 'WASD/setas, Espaço, J, K, L, I | Mobile: botões virtuais', {
       fontFamily: 'Arial',
       fontSize: '14px',
       color: '#7be7ff',
     }).setOrigin(0.5);
 
+    this.refreshLayout();
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.audioSystem?.stopMusic();
     });
+  }
+
+  refreshLayout() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    this.background?.setPosition(centerX, centerY);
+    if (this.background) {
+      const source = this.textures.get('mist-bg-placeholder')?.getSourceImage?.();
+      const scaleX = source?.width ? width / source.width : 1;
+      const scaleY = source?.height ? height / source.height : 1;
+      this.background.setScale(Math.max(scaleX, scaleY));
+    }
+
+    const topOffset = height <= 360 ? 8 : 0;
+    this.titleText?.setPosition(centerX, 70 + topOffset);
+    this.subtitleText?.setPosition(centerX, 124 + topOffset);
+    this.loginText?.setPosition(centerX, 158 + topOffset);
+
+    const buttonYs = [216, 272, 328, 384, 440].map((y) => Phaser.Math.Clamp(y + topOffset, 120, height - 88));
+    [this.levelButton, this.upgradeButton, this.retentionButton, this.settingsButton, this.fullscreenButton].forEach((buttonGroup, index) => {
+      this.positionButton(buttonGroup, centerX, buttonYs[index]);
+    });
+
+    this.fullscreenStatusText?.setPosition(centerX, height - 48);
+    this.helpText?.setPosition(centerX, height - 20);
+  }
+
+  positionButton(buttonGroup, x, y) {
+    if (!buttonGroup) return;
+    buttonGroup.button.setPosition(x, y);
+    buttonGroup.text.setPosition(x, y);
   }
 
   showFullscreenStatus(message, isOk = true) {
