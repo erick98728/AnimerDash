@@ -64,6 +64,25 @@ export default class SaveSystem {
     return Math.min(Math.max(numericValue, min), max);
   }
 
+  static toSafeNumber(value, fallback = 0) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : fallback;
+  }
+
+  static normalizeStringArray(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value.filter((item) => typeof item === 'string' && item.length > 0))];
+  }
+
+  static normalizeNumberObject(defaultObject, loadedObject = {}) {
+    return Object.fromEntries(
+      Object.entries(defaultObject).map(([key, defaultValue]) => [
+        key,
+        Math.max(0, SaveSystem.toSafeNumber(loadedObject[key], defaultValue)),
+      ]),
+    );
+  }
+
   static normalizeSave(data) {
     const defaultSave = SaveSystem.getDefaultSave();
     const loaded = data ?? {};
@@ -74,18 +93,16 @@ export default class SaveSystem {
       ...defaultSave,
       ...loaded,
       version: defaultSave.version,
-      playerLevel: Number.isFinite(loaded.playerLevel) ? loaded.playerLevel : defaultSave.playerLevel,
-      xp: Number.isFinite(loaded.xp) ? loaded.xp : defaultSave.xp,
-      coins: Number.isFinite(loaded.coins) ? loaded.coins : defaultSave.coins,
-      rareScrolls: Number.isFinite(loaded.rareScrolls) ? loaded.rareScrolls : defaultSave.rareScrolls,
-      skillPoints: Number.isFinite(loaded.skillPoints) ? loaded.skillPoints : defaultSave.skillPoints,
-      totalSkillPointsEarned: Number.isFinite(loaded.totalSkillPointsEarned)
-        ? loaded.totalSkillPointsEarned
-        : defaultSave.totalSkillPointsEarned,
-      upgrades: {
-        ...defaultSave.upgrades,
-        ...(loaded.upgrades ?? {}),
-      },
+      playerLevel: Math.max(1, Math.floor(SaveSystem.toSafeNumber(loaded.playerLevel, defaultSave.playerLevel))),
+      xp: Math.max(0, SaveSystem.toSafeNumber(loaded.xp, defaultSave.xp)),
+      coins: Math.max(0, SaveSystem.toSafeNumber(loaded.coins, defaultSave.coins)),
+      rareScrolls: Math.max(0, SaveSystem.toSafeNumber(loaded.rareScrolls, defaultSave.rareScrolls)),
+      skillPoints: Math.max(0, SaveSystem.toSafeNumber(loaded.skillPoints, defaultSave.skillPoints)),
+      totalSkillPointsEarned: Math.max(
+        0,
+        SaveSystem.toSafeNumber(loaded.totalSkillPointsEarned, defaultSave.totalSkillPointsEarned),
+      ),
+      upgrades: SaveSystem.normalizeNumberObject(defaultSave.upgrades, loaded.upgrades),
       settings: {
         ...defaultSave.settings,
         ...loadedSettings,
@@ -100,22 +117,31 @@ export default class SaveSystem {
         ),
         hideMobileGameplayHelp: loadedSettings.hideMobileGameplayHelp ?? defaultSave.settings.hideMobileGameplayHelp,
       },
-      completedLevels: Array.isArray(loaded.completedLevels) ? loaded.completedLevels : defaultSave.completedLevels,
-      unlockedSkills: Array.isArray(loaded.unlockedSkills) ? loaded.unlockedSkills : defaultSave.unlockedSkills,
-      specialItems: Array.isArray(loaded.specialItems) ? loaded.specialItems : defaultSave.specialItems,
+      completedLevels: SaveSystem.normalizeStringArray(loaded.completedLevels),
+      unlockedSkills: SaveSystem.normalizeStringArray(loaded.unlockedSkills),
+      specialItems: SaveSystem.normalizeStringArray(loaded.specialItems),
       retention: {
         ...defaultSave.retention,
         ...loadedRetention,
-        dailyStats: {
-          ...defaultSave.retention.dailyStats,
-          ...(loadedRetention.dailyStats ?? {}),
-        },
-        lifetimeStats: {
-          ...defaultSave.retention.lifetimeStats,
-          ...(loadedRetention.lifetimeStats ?? {}),
-        },
-        claimedDailyMissions: loadedRetention.claimedDailyMissions ?? defaultSave.retention.claimedDailyMissions,
-        claimedAchievements: loadedRetention.claimedAchievements ?? defaultSave.retention.claimedAchievements,
+        loginStreak: Math.max(0, SaveSystem.toSafeNumber(loadedRetention.loginStreak, defaultSave.retention.loginStreak)),
+        bestLoginStreak: Math.max(
+          0,
+          SaveSystem.toSafeNumber(loadedRetention.bestLoginStreak, defaultSave.retention.bestLoginStreak),
+        ),
+        dailyStats: SaveSystem.normalizeNumberObject(
+          defaultSave.retention.dailyStats,
+          loadedRetention.dailyStats,
+        ),
+        lifetimeStats: SaveSystem.normalizeNumberObject(
+          defaultSave.retention.lifetimeStats,
+          loadedRetention.lifetimeStats,
+        ),
+        claimedDailyMissions: loadedRetention.claimedDailyMissions && typeof loadedRetention.claimedDailyMissions === 'object'
+          ? loadedRetention.claimedDailyMissions
+          : defaultSave.retention.claimedDailyMissions,
+        claimedAchievements: loadedRetention.claimedAchievements && typeof loadedRetention.claimedAchievements === 'object'
+          ? loadedRetention.claimedAchievements
+          : defaultSave.retention.claimedAchievements,
       },
     };
   }
