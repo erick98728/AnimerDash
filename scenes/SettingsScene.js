@@ -136,6 +136,7 @@ export default class SettingsScene extends Phaser.Scene {
     const targetScene = this.scene.get(this.returnScene);
     targetScene?.touchControlsSystem?.applySettings?.();
     targetScene?.hudSystem?.applySettings?.();
+    targetScene?.audioSystem?.refreshSettings?.();
 
     if (targetScene?.sound) {
       targetScene.sound.volume = Math.max(this.settings.musicVolume, this.settings.sfxVolume);
