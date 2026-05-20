@@ -180,7 +180,9 @@ export default class AudioSystem {
     let index = 0;
 
     const playNote = () => {
+      this.refreshSettings();
       if (this.settings.musicVolume <= 0) return;
+
       const context = this.getAudioContext();
       if (!context) return;
 
