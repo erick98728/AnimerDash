@@ -1,8 +1,12 @@
+import { ASSET_MANIFEST, getTextureKey } from '../data/assetsManifest.js';
 import { COLORS } from '../data/gameData.js';
 
 export default class Collectible extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, value = 1, type = 'coin') {
-    const textureKey = type === 'xp' ? 'xp-placeholder' : 'collectible-placeholder';
+    const assetEntry = type === 'xp' ? ASSET_MANIFEST.collectibles.xp : ASSET_MANIFEST.collectibles.coin;
+    const fallbackKey = type === 'xp' ? 'xp-placeholder' : 'collectible-placeholder';
+    const textureKey = getTextureKey(scene, assetEntry, fallbackKey);
+
     super(scene, x, y, textureKey);
 
     scene.add.existing(this);
