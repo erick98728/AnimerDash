@@ -16,8 +16,9 @@ export default class ProgressionSystem {
   }
 
   static applyLevelFromXp(save) {
-    const previousLevel = save.playerLevel ?? 1;
-    const nextLevel = getLevelFromXp(save.xp ?? 0);
+    const previousLevel = Math.max(1, save.playerLevel ?? 1);
+    const xpLevel = getLevelFromXp(save.xp ?? 0);
+    const nextLevel = Math.max(previousLevel, xpLevel);
 
     if (nextLevel > previousLevel) {
       const gainedLevels = nextLevel - previousLevel;
