@@ -9,6 +9,8 @@ export default class DialogueSystem {
     this.onComplete = null;
     this.triggeredDialogues = new Set();
     this.lastAdvanceAt = 0;
+    this.lastFinishedAt = 0;
+    this.activeOptions = {};
 
     this.createBox();
     this.registerInputs();
@@ -91,7 +93,8 @@ export default class DialogueSystem {
   start(dialogueId, options = {}) {
     const lines = getDialogue(dialogueId);
     if (!lines.length) return false;
-    if (this.scene.pauseSystem?.isPaused?.()) return false;
+    if (this.isActive) return false;
+    if (this.scene.pauseSystem?.isPaused?.() && !options.ignorePause) return false;
 
     if (options.once && this.triggeredDialogues.has(dialogueId)) {
       return false;
@@ -101,7 +104,9 @@ export default class DialogueSystem {
     this.currentLines = lines;
     this.currentIndex = 0;
     this.onComplete = options.onComplete ?? null;
+    this.activeOptions = options;
     this.isActive = true;
+    this.lastAdvanceAt = this.scene.time.now;
     this.container.setVisible(true);
     this.scene.inputSystem?.releaseAllTouchInputs?.();
     this.renderCurrentLine();
@@ -123,7 +128,7 @@ export default class DialogueSystem {
     if (!this.isActive) return;
 
     const now = this.scene.time.now;
-    if (now - this.lastAdvanceAt < 120) return;
+    if (now - this.lastAdvanceAt < 140) return;
     this.lastAdvanceAt = now;
 
     this.currentIndex += 1;
@@ -141,9 +146,11 @@ export default class DialogueSystem {
     this.currentIndex = 0;
     this.container.setVisible(false);
     this.scene.inputSystem?.releaseAllTouchInputs?.();
+    this.lastFinishedAt = this.scene.time.now;
 
     const completeCallback = this.onComplete;
     this.onComplete = null;
+    this.activeOptions = {};
     completeCallback?.();
   }
 
@@ -152,5 +159,16 @@ export default class DialogueSystem {
 
     const currentLine = this.currentLines[this.currentIndex];
     return currentLine?.lockPlayer !== false;
+  }
+
+  isBlockingGameplay() {
+    if (!this.isActive) return false;
+    if (this.activeOptions.pauseGameplay) return true;
+    return this.isBlockingPlayer();
+  }
+
+  canStartNewDialogue(cooldown = 550) {
+    if (this.isActive) return false;
+    return this.scene.time.now - this.lastFinishedAt >= cooldown;
   }
 }
