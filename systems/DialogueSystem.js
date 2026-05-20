@@ -14,6 +14,7 @@ export default class DialogueSystem {
 
     this.createBox();
     this.registerInputs();
+    this.refreshLayout();
   }
 
   createBox() {
@@ -46,6 +47,22 @@ export default class DialogueSystem {
     this.container.add([this.backdrop, this.speakerText, this.bodyText, this.hintText]);
   }
 
+  refreshLayout() {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const boxWidth = Phaser.Math.Clamp(width - 140, 720, Math.min(1080, width - 64));
+    const boxHeight = 138;
+    const left = -boxWidth / 2 + 30;
+    const textWidth = boxWidth - 80;
+
+    this.container.setPosition(width / 2, height - 108);
+    this.backdrop.setSize(boxWidth, boxHeight);
+    this.speakerText.setPosition(left, -52);
+    this.bodyText.setPosition(left, -18);
+    this.bodyText.setWordWrapWidth(textWidth);
+    this.hintText.setPosition(boxWidth / 2 - 30, 48);
+  }
+
   registerInputs() {
     this.advanceKeys = this.scene.input.keyboard.addKeys({
       space: Phaser.Input.Keyboard.KeyCodes.SPACE,
@@ -69,10 +86,12 @@ export default class DialogueSystem {
   }
 
   isPointerInsideDialogueBox(pointer) {
-    const left = 70;
-    const right = this.scene.scale.width - 70;
-    const top = this.scene.scale.height - 178;
-    const bottom = this.scene.scale.height - 38;
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const left = Math.max(32, width * 0.06);
+    const right = width - left;
+    const top = height - 178;
+    const bottom = height - 38;
 
     return pointer.x >= left && pointer.x <= right && pointer.y >= top && pointer.y <= bottom;
   }
@@ -107,6 +126,7 @@ export default class DialogueSystem {
     this.activeOptions = options;
     this.isActive = true;
     this.lastAdvanceAt = this.scene.time.now;
+    this.refreshLayout();
     this.container.setVisible(true);
     this.scene.inputSystem?.releaseAllTouchInputs?.();
     this.renderCurrentLine();
