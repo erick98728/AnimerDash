@@ -1,5 +1,10 @@
 import ProgressionSystem from '../systems/ProgressionSystem.js';
 import { LEVELS } from '../data/levels.js';
+import {
+  captureResponsiveLayout,
+  markResponsiveBackground,
+  refreshResponsiveLayout,
+} from '../systems/ResponsiveLayout.js';
 
 export default class LevelSelectScene extends Phaser.Scene {
   constructor() {
@@ -12,7 +17,7 @@ export default class LevelSelectScene extends Phaser.Scene {
     this.currentPage = 0;
     this.cardsPerPage = 5;
 
-    this.add.image(480, 270, 'mist-bg-placeholder');
+    markResponsiveBackground(this, this.add.image(480, 270, 'mist-bg-placeholder'));
 
     this.add.text(480, 38, 'Seleção de Fases', {
       fontFamily: 'Arial',
@@ -29,6 +34,10 @@ export default class LevelSelectScene extends Phaser.Scene {
 
     this.createNavigationButtons();
     this.renderPage();
+  }
+
+  refreshLayout() {
+    refreshResponsiveLayout(this);
   }
 
   createNavigationButtons() {
@@ -68,6 +77,8 @@ export default class LevelSelectScene extends Phaser.Scene {
 
     this.updateNavigationState();
     this.createBossHighlight();
+    captureResponsiveLayout(this);
+    this.refreshLayout();
   }
 
   createLevelCard(level, index, y) {
