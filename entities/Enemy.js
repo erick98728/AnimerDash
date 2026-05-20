@@ -1,14 +1,18 @@
 import EnemyProjectile from './EnemyProjectile.js';
+import { ASSET_MANIFEST, getTextureKey } from '../data/assetsManifest.js';
 import { COLORS, GAME_DATA } from '../data/gameData.js';
 
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, type = 'weakNinja', options = {}) {
+    const baseConfig = GAME_DATA.enemies[type] ?? GAME_DATA.enemies.weakNinja;
+    const textureKey = getTextureKey(scene, ASSET_MANIFEST.enemies[type], options.texture ?? baseConfig.texture ?? 'enemy-placeholder');
     const config = {
-      ...GAME_DATA.enemies[type],
+      ...baseConfig,
       ...options,
+      texture: textureKey,
     };
 
-    super(scene, x, y, config.texture ?? 'enemy-placeholder');
+    super(scene, x, y, config.texture);
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -101,24 +105,42 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   static createPlaceholderAnimations(scene) {
-    Object.values(GAME_DATA.enemies).forEach((config) => {
-      const baseKey = config.texture;
-      const anims = [
-        [`${baseKey}-idle`, baseKey, 4],
-        [`${baseKey}-run`, baseKey, 8],
-        [`${baseKey}-attack`, baseKey, 10],
-      ];
+    Object.entries(GAME_DATA.enemies).forEach(([enemyType, config]) => {
+      const asset = ASSET_MANIFEST.enemies[enemyType];
+      const textureKey = getTextureKey(scene, asset, config.texture);
+      const frameRate = asset?.frameRate ?? 8;
 
-      anims.forEach(([key, textureKey, frameRate]) => {
-        if (scene.anims.exists(key)) return;
+      Enemy.createAnimation(scene, `${textureKey}-idle`, textureKey, Math.max(4, frameRate - 3));
+      Enemy.createAnimation(scene, `${textureKey}-run`, textureKey, frameRate);
+      Enemy.createAnimation(scene, `${textureKey}-attack`, textureKey, frameRate + 2);
 
-        scene.anims.create({
-          key,
-          frames: [{ key: textureKey }],
-          frameRate,
-          repeat: -1,
-        });
-      });
+      // Mantém compatibilidade com animações antigas baseadas na textura placeholder.
+      if (textureKey !== config.texture) {
+        Enemy.createAnimation(scene, `${config.texture}-idle`, config.texture, 4);
+        Enemy.createAnimation(scene, `${config.texture}-run`, config.texture, 8);
+        Enemy.createAnimation(scene, `${config.texture}-attack`, config.texture, 10);
+      }
+    });
+  }
+
+  static createRealAssetAnimations(scene) {
+    Enemy.createPlaceholderAnimations(scene);
+  }
+
+  static createAnimation(scene, key, textureKey, frameRate) {
+    if (scene.anims.exists(key) || !scene.textures.exists(textureKey)) return;
+
+    const texture = scene.textures.get(textureKey);
+    const frameEnd = Math.max(0, (texture?.frameTotal ?? 1) - 2);
+    const frames = frameEnd > 0
+      ? scene.anims.generateFrameNumbers(textureKey, { start: 0, end: frameEnd })
+      : [{ key: textureKey }];
+
+    scene.anims.create({
+      key,
+      frames,
+      frameRate,
+      repeat: -1,
     });
   }
 
@@ -303,7 +325,10 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   playAnimation(state) {
     const animKey = `${this.config.texture}-${state}`;
     if (this.anims?.currentAnim?.key === animKey) return;
-    this.play(animKey, true);
+
+    if (this.scene.anims.exists(animKey)) {
+      this.play(animKey, true);
+    }
   }
 
   takeDamage(amount, knockbackX = 0, knockbackY = -70) {
