@@ -1,5 +1,15 @@
 export const USE_REAL_ASSETS = false;
 
+export const ASSET_LOAD_FLAGS = {
+  useRealPlayerAssets: false,
+  useRealEnemyAssets: false,
+  useRealBossAssets: false,
+  useRealCollectibleAssets: false,
+  useRealBackgroundAssets: false,
+  useRealTilesetAssets: false,
+  useRealUiAssets: false,
+};
+
 export const ASSET_MANIFEST = {
   player: {
     ren: {
@@ -184,6 +194,28 @@ export function flattenAssets(manifest = ASSET_MANIFEST) {
 
   walk(manifest);
   return assets;
+}
+
+export function getEnabledAssetGroups() {
+  if (!USE_REAL_ASSETS) return [];
+
+  return [
+    ASSET_LOAD_FLAGS.useRealPlayerAssets ? ASSET_MANIFEST.player : null,
+    ASSET_LOAD_FLAGS.useRealEnemyAssets ? ASSET_MANIFEST.enemies : null,
+    ASSET_LOAD_FLAGS.useRealBossAssets ? ASSET_MANIFEST.bosses : null,
+    ASSET_LOAD_FLAGS.useRealCollectibleAssets ? ASSET_MANIFEST.collectibles : null,
+    ASSET_LOAD_FLAGS.useRealBackgroundAssets ? ASSET_MANIFEST.backgrounds : null,
+    ASSET_LOAD_FLAGS.useRealTilesetAssets ? ASSET_MANIFEST.tilesets : null,
+    ASSET_LOAD_FLAGS.useRealUiAssets ? ASSET_MANIFEST.ui : null,
+  ].filter(Boolean);
+}
+
+export function getEnabledAssets() {
+  return getEnabledAssetGroups().flatMap((group) => flattenAssets(group));
+}
+
+export function hasAnyRealAssetCategoryEnabled() {
+  return USE_REAL_ASSETS && Object.values(ASSET_LOAD_FLAGS).some(Boolean);
 }
 
 export function getTextureKey(scene, assetEntry, fallbackKey) {
