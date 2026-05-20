@@ -122,11 +122,15 @@ export default class GameScene extends Phaser.Scene {
 
   startOpeningDialogues() {
     if (this.levelData.id === 'level-01') {
-      this.time.delayedCall(260, () => this.dialogueSystem.start('tutorialMove', { once: true }));
+      this.time.delayedCall(260, () => {
+        this.dialogueSystem.start('tutorialMove', { once: true });
+      });
     }
 
     if (this.levelData.id === 'boss-prototype') {
-      this.time.delayedCall(260, () => this.dialogueSystem.start('kaizenIntro', { once: true }));
+      this.time.delayedCall(260, () => {
+        this.dialogueSystem.start('kaizenIntro', { once: true, pauseGameplay: true });
+      });
     }
   }
 
@@ -180,9 +184,10 @@ export default class GameScene extends Phaser.Scene {
     this.pauseSystem.update(this.isLevelFinished);
     if (this.pauseSystem.isPaused()) return;
 
-    const isDialogueBlocking = this.dialogueSystem.isBlockingPlayer();
+    const isDialogueBlockingPlayer = this.dialogueSystem.isBlockingPlayer();
+    const isDialogueBlockingGameplay = this.dialogueSystem.isBlockingGameplay();
 
-    if (!isDialogueBlocking) {
+    if (!isDialogueBlockingPlayer) {
       this.player.update(this.inputSystem, delta);
       this.updateTutorialTriggers();
 
@@ -199,14 +204,17 @@ export default class GameScene extends Phaser.Scene {
       }
     } else {
       this.player.setVelocityX(0);
+      this.inputSystem.releaseAllTouchInputs?.();
     }
 
-    this.enemies.children.iterate((enemy) => enemy?.update(this.player, this.enemyProjectiles));
-    this.bosses.children.iterate((boss) => boss?.update(this.player, {
-      enemyProjectiles: this.enemyProjectiles,
-      spawnBossMinion: this.spawnBossMinion.bind(this),
-    }));
-    this.collectibles.children.iterate((collectible) => collectible?.update(time));
+    if (!isDialogueBlockingGameplay) {
+      this.enemies.children.iterate((enemy) => enemy?.update(this.player, this.enemyProjectiles));
+      this.bosses.children.iterate((boss) => boss?.update(this.player, {
+        enemyProjectiles: this.enemyProjectiles,
+        spawnBossMinion: this.spawnBossMinion.bind(this),
+      }));
+      this.collectibles.children.iterate((collectible) => collectible?.update(time));
+    }
 
     this.hudSystem.update(this.player, this.levelCoins, this.levelXp);
     this.bossHudSystem.update(this.boss);
@@ -215,22 +223,20 @@ export default class GameScene extends Phaser.Scene {
 
   updateTutorialTriggers() {
     if (this.levelData.id !== 'level-01') return;
-    if (this.dialogueSystem.isActive) return;
+    if (!this.dialogueSystem.canStartNewDialogue()) return;
 
     const triggers = [
-      { id: 'tutorialJump', condition: () => this.player.x > 250 },
-      { id: 'tutorialAttack', condition: () => this.player.x > 380 },
-      { id: 'tutorialDash', condition: () => this.player.x > 560 },
-      { id: 'tutorialSpecial', condition: () => this.player.x > 820 },
+      { id: 'tutorialJump', condition: () => this.player.x > 300 },
+      { id: 'tutorialAttack', condition: () => this.player.x > 475 },
+      { id: 'tutorialDash', condition: () => this.player.x > 680 },
+      { id: 'tutorialSpecial', condition: () => this.player.x > 940 },
     ];
 
-    triggers.forEach((trigger) => {
-      if (this.tutorialFlags.has(trigger.id)) return;
-      if (!trigger.condition()) return;
+    const nextTrigger = triggers.find((trigger) => !this.tutorialFlags.has(trigger.id) && trigger.condition());
+    if (!nextTrigger) return;
 
-      this.tutorialFlags.add(trigger.id);
-      this.dialogueSystem.start(trigger.id, { once: true });
-    });
+    this.tutorialFlags.add(nextTrigger.id);
+    this.dialogueSystem.start(nextTrigger.id, { once: true });
   }
 
   handlePlayerComboAttack() {
@@ -297,9 +303,16 @@ export default class GameScene extends Phaser.Scene {
     this.bossRewardApplied = true;
     this.retentionSystem.recordBossDefeated(1);
     this.cameras.main.shake(240, 0.006);
-    this.dialogueSystem.start('kaizenDefeated', {
+
+    const startedDialogue = this.dialogueSystem.start('kaizenDefeated', {
+      ignorePause: true,
+      pauseGameplay: true,
       onComplete: () => this.finishLevel({ defeatedBoss: true }),
     });
+
+    if (!startedDialogue) {
+      this.finishLevel({ defeatedBoss: true });
+    }
   }
 
   checkLevelState() {
