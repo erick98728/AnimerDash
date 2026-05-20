@@ -7,6 +7,7 @@ export default class PauseSystem {
 
     this.createOverlay();
     this.registerFocusEvents();
+    this.refreshLayout();
   }
 
   createOverlay() {
@@ -36,6 +37,28 @@ export default class PauseSystem {
       this.createButton(480, 352, 'Configurações', () => this.openSettings()),
       this.createButton(480, 408, 'Voltar ao menu', () => this.returnToMenu()),
     ];
+  }
+
+  refreshLayout() {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    this.pauseOverlay?.setPosition(centerX, centerY).setSize(width, height);
+    this.titleText?.setPosition(centerX, centerY - 120);
+    this.reasonText?.setPosition(centerX, centerY - 82);
+
+    const yPositions = [centerY - 30, centerY + 26, centerY + 82, centerY + 138];
+    this.buttons?.forEach((buttonGroup, index) => {
+      this.positionButton(buttonGroup, centerX, yPositions[index]);
+    });
+  }
+
+  positionButton(buttonGroup, x, y) {
+    if (!buttonGroup) return;
+    buttonGroup.button.setPosition(x, y);
+    buttonGroup.text.setPosition(x, y);
   }
 
   createButton(x, y, label, callback) {
@@ -157,6 +180,7 @@ export default class PauseSystem {
   }
 
   showOverlay(isVisible, reason = '') {
+    this.refreshLayout();
     this.pauseOverlay?.setVisible(isVisible);
     this.titleText?.setVisible(isVisible);
     this.reasonText?.setVisible(isVisible).setText(reason);
