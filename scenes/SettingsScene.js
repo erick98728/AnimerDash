@@ -1,5 +1,10 @@
 import SaveSystem from '../systems/SaveSystem.js';
 import FullscreenSystem from '../systems/FullscreenSystem.js';
+import {
+  captureResponsiveLayout,
+  markFullScreenOverlay,
+  refreshResponsiveLayout,
+} from '../systems/ResponsiveLayout.js';
 
 export default class SettingsScene extends Phaser.Scene {
   constructor() {
@@ -14,7 +19,7 @@ export default class SettingsScene extends Phaser.Scene {
   create() {
     this.settings = SaveSystem.getSettings();
 
-    this.add.rectangle(480, 270, 960, 540, 0x02050a, 0.86).setDepth(2500);
+    markFullScreenOverlay(this.add.rectangle(480, 270, 960, 540, 0x02050a, 0.86).setDepth(2500));
     this.add.rectangle(480, 270, 680, 480, 0x07111f, 0.96)
       .setStrokeStyle(3, 0x7be7ff, 0.75)
       .setDepth(2501);
@@ -45,6 +50,13 @@ export default class SettingsScene extends Phaser.Scene {
     }, 210, 40);
 
     this.createButton(608, 436, 'Voltar', () => this.closeSettings(), 210, 40);
+
+    captureResponsiveLayout(this);
+    this.refreshLayout();
+  }
+
+  refreshLayout() {
+    refreshResponsiveLayout(this);
   }
 
   createVolumeControl(x, y, label, settingKey, min = 0, max = 1) {
