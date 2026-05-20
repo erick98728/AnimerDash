@@ -1,12 +1,13 @@
 export default class FullscreenSystem {
   static game = null;
   static resizeTimeout = null;
-  static targetRatio = 16 / 9;
+  static baseHeight = 540;
+  static minBaseWidth = 960;
 
   static install(game) {
     FullscreenSystem.game = game;
     FullscreenSystem.updateFullscreenClass();
-    FullscreenSystem.applyBestFitLayout();
+    FullscreenSystem.applyDynamicViewport();
 
     const refresh = () => FullscreenSystem.scheduleLayoutRefresh();
 
@@ -16,7 +17,6 @@ export default class FullscreenSystem {
     window.addEventListener('resize', refresh);
     window.addEventListener('orientationchange', refresh);
 
-    // Alguns navegadores mobile atualizam innerHeight com atraso após fullscreen/orientação.
     setTimeout(refresh, 120);
     setTimeout(refresh, 420);
   }
@@ -64,63 +64,75 @@ export default class FullscreenSystem {
     return { width, height };
   }
 
-  static calculateBestFitSize() {
-    const { width: viewportWidth, height: viewportHeight } = FullscreenSystem.getViewportSize();
-    const viewportRatio = viewportWidth / viewportHeight;
-    let width;
-    let height;
+  static isMobileLike() {
+    return window.matchMedia('(pointer: coarse), (max-width: 940px)').matches;
+  }
 
-    if (viewportRatio > FullscreenSystem.targetRatio) {
-      height = viewportHeight;
-      width = Math.floor(height * FullscreenSystem.targetRatio);
-    } else {
-      width = viewportWidth;
-      height = Math.floor(width / FullscreenSystem.targetRatio);
-    }
+  static shouldUseDynamicViewport() {
+    return FullscreenSystem.isMobileLike() || FullscreenSystem.isFullscreen();
+  }
+
+  static calculateDynamicViewport() {
+    const { width: viewportWidth, height: viewportHeight } = FullscreenSystem.getViewportSize();
+    const safeWidth = Math.max(320, viewportWidth);
+    const safeHeight = Math.max(180, viewportHeight);
+    const screenRatio = safeWidth / safeHeight;
+    const dynamicWidth = Math.max(
+      FullscreenSystem.minBaseWidth,
+      Math.round(FullscreenSystem.baseHeight * screenRatio),
+    );
 
     return {
-      width: Math.max(320, Math.floor(width)),
-      height: Math.max(180, Math.floor(height)),
-      viewportWidth,
-      viewportHeight,
+      logicalWidth: dynamicWidth,
+      logicalHeight: FullscreenSystem.baseHeight,
+      physicalWidth: safeWidth,
+      physicalHeight: safeHeight,
     };
   }
 
-  static applyBestFitLayout() {
+  static applyDynamicViewport() {
+    const game = FullscreenSystem.game || window.game;
     const container = FullscreenSystem.getGameContainer();
-    if (!container) return;
+    if (!game?.scale || !container) return;
 
-    const isMobileLike = window.matchMedia('(pointer: coarse), (max-width: 940px)').matches;
-    const shouldUseManagedLayout = isMobileLike || FullscreenSystem.isFullscreen();
-
-    if (!shouldUseManagedLayout) {
+    if (!FullscreenSystem.shouldUseDynamicViewport()) {
       container.style.removeProperty('width');
       container.style.removeProperty('height');
       container.style.removeProperty('max-width');
       container.style.removeProperty('max-height');
-      FullscreenSystem.refreshPhaserScale();
+      game.scale.resize(FullscreenSystem.minBaseWidth, FullscreenSystem.baseHeight);
+      FullscreenSystem.refreshScenes();
       return;
     }
 
-    const { width, height } = FullscreenSystem.calculateBestFitSize();
-    container.style.width = `${width}px`;
-    container.style.height = `${height}px`;
+    const viewport = FullscreenSystem.calculateDynamicViewport();
+
+    container.style.width = `${viewport.physicalWidth}px`;
+    container.style.height = `${viewport.physicalHeight}px`;
     container.style.maxWidth = '100vw';
     container.style.maxHeight = '100dvh';
 
-    FullscreenSystem.refreshPhaserScale();
+    game.scale.resize(viewport.logicalWidth, viewport.logicalHeight);
+    FullscreenSystem.refreshScenes();
   }
 
-  static refreshPhaserScale() {
+  static refreshScenes() {
     const game = FullscreenSystem.game || window.game;
-    if (!game?.scale) return;
+    if (!game?.scene) return;
 
-    game.scale.refresh();
+    game.scale?.refresh?.();
 
-    game.scene?.getScenes?.(true)?.forEach((scene) => {
+    game.scene.getScenes(true).forEach((scene) => {
+      const width = scene.scale.width;
+      const height = scene.scale.height;
+
+      scene.cameras?.main?.setViewport?.(0, 0, width, height);
       scene.scale?.refresh?.();
+      scene.refreshLayout?.();
       scene.touchControlsSystem?.updateLayout?.();
       scene.hudSystem?.applySettings?.();
+      scene.pauseSystem?.refreshLayout?.();
+      scene.dialogueSystem?.refreshLayout?.();
     });
   }
 
@@ -130,11 +142,11 @@ export default class FullscreenSystem {
 
     FullscreenSystem.resizeTimeout = window.setTimeout(() => {
       FullscreenSystem.updateFullscreenClass();
-      FullscreenSystem.applyBestFitLayout();
+      FullscreenSystem.applyDynamicViewport();
     }, 80);
 
-    window.setTimeout(() => FullscreenSystem.applyBestFitLayout(), 260);
-    window.setTimeout(() => FullscreenSystem.applyBestFitLayout(), 520);
+    window.setTimeout(() => FullscreenSystem.applyDynamicViewport(), 260);
+    window.setTimeout(() => FullscreenSystem.applyDynamicViewport(), 520);
   }
 
   static async enter() {
