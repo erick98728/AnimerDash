@@ -1,14 +1,16 @@
 import Enemy from './Enemy.js';
 import EnemyProjectile from './EnemyProjectile.js';
+import { ASSET_MANIFEST, getTextureKey } from '../data/assetsManifest.js';
 import { COLORS, GAME_DATA } from '../data/gameData.js';
 
 export default class Boss extends Enemy {
   constructor(scene, x, y) {
     const config = GAME_DATA.boss;
+    const bossTexture = getTextureKey(scene, ASSET_MANIFEST.bosses.kaizen, config.texture);
 
     super(scene, x, y, 'heavyGuardian', {
       label: config.name,
-      texture: config.texture,
+      texture: bossTexture,
       health: config.health,
       damage: config.attacks.melee.damage,
       speed: config.speed,
@@ -30,43 +32,70 @@ export default class Boss extends Enemy {
     this.nextActionAt = 0;
     this.isActing = false;
     this.hasRewarded = false;
-    this.setTexture(config.texture);
+    this.setTexture(bossTexture);
+    this.config.texture = bossTexture;
     this.setSize(46, 62);
     this.setOffset(7, 4);
   }
 
   static createTexture(scene) {
-    if (scene.textures.exists('boss-kaizen-placeholder')) return;
-
-    const graphics = scene.add.graphics();
-    graphics.fillStyle(COLORS.boss, 1);
-    graphics.fillRoundedRect(7, 4, 46, 62, 10);
-    graphics.fillStyle(0x200814, 1);
-    graphics.fillRect(15, 22, 30, 7);
-    graphics.fillStyle(COLORS.bossMist, 0.9);
-    graphics.fillCircle(30, 10, 11);
-    graphics.fillStyle(COLORS.projectile, 1);
-    graphics.fillTriangle(30, 0, 44, 18, 16, 18);
-    graphics.lineStyle(3, 0xffffff, 0.7);
-    graphics.strokeRoundedRect(11, 8, 38, 54, 10);
-    graphics.generateTexture('boss-kaizen-placeholder', 60, 72);
-    graphics.destroy();
+    if (!scene.textures.exists('boss-kaizen-placeholder')) {
+      const graphics = scene.add.graphics();
+      graphics.fillStyle(COLORS.boss, 1);
+      graphics.fillRoundedRect(7, 4, 46, 62, 10);
+      graphics.fillStyle(0x200814, 1);
+      graphics.fillRect(15, 22, 30, 7);
+      graphics.fillStyle(COLORS.bossMist, 0.9);
+      graphics.fillCircle(30, 10, 11);
+      graphics.fillStyle(COLORS.projectile, 1);
+      graphics.fillTriangle(30, 0, 44, 18, 16, 18);
+      graphics.lineStyle(3, 0xffffff, 0.7);
+      graphics.strokeRoundedRect(11, 8, 38, 54, 10);
+      graphics.generateTexture('boss-kaizen-placeholder', 60, 72);
+      graphics.destroy();
+    }
 
     Boss.createPlaceholderAnimations(scene);
   }
 
   static createPlaceholderAnimations(scene) {
-    const textureKey = GAME_DATA.boss.texture;
+    const textureKey = getTextureKey(scene, ASSET_MANIFEST.bosses.kaizen, GAME_DATA.boss.texture);
     const animations = [
-      ['boss-kaizen-idle', textureKey, 4],
-      ['boss-kaizen-run', textureKey, 7],
-      ['boss-kaizen-attack', textureKey, 10],
+      [`${textureKey}-idle`, textureKey, 4],
+      [`${textureKey}-run`, textureKey, 7],
+      [`${textureKey}-attack`, textureKey, 10],
     ];
 
     animations.forEach(([key, frameKey, frameRate]) => {
-      if (scene.anims.exists(key)) return;
-      scene.anims.create({ key, frames: [{ key: frameKey }], frameRate, repeat: -1 });
+      Boss.createAnimation(scene, key, frameKey, frameRate);
     });
+
+    // Compatibilidade com chamadas antigas fixas boss-kaizen-idle/run/attack.
+    if (textureKey !== GAME_DATA.boss.texture) {
+      Boss.createAnimation(scene, 'boss-kaizen-idle', textureKey, 4);
+      Boss.createAnimation(scene, 'boss-kaizen-run', textureKey, 7);
+      Boss.createAnimation(scene, 'boss-kaizen-attack', textureKey, 10);
+    } else {
+      Boss.createAnimation(scene, 'boss-kaizen-idle', GAME_DATA.boss.texture, 4);
+      Boss.createAnimation(scene, 'boss-kaizen-run', GAME_DATA.boss.texture, 7);
+      Boss.createAnimation(scene, 'boss-kaizen-attack', GAME_DATA.boss.texture, 10);
+    }
+  }
+
+  static createRealAssetAnimations(scene) {
+    Boss.createPlaceholderAnimations(scene);
+  }
+
+  static createAnimation(scene, key, textureKey, frameRate) {
+    if (scene.anims.exists(key) || !scene.textures.exists(textureKey)) return;
+
+    const texture = scene.textures.get(textureKey);
+    const frameEnd = Math.max(0, (texture?.frameTotal ?? 1) - 2);
+    const frames = frameEnd > 0
+      ? scene.anims.generateFrameNumbers(textureKey, { start: 0, end: frameEnd })
+      : [{ key: textureKey }];
+
+    scene.anims.create({ key, frames, frameRate, repeat: -1 });
   }
 
   update(player, context = {}) {
@@ -122,10 +151,10 @@ export default class Boss extends Enemy {
 
     if (distance > 105) {
       this.setVelocityX(this.direction * this.speed * 0.75);
-      this.play('boss-kaizen-run', true);
+      this.playBossAnimation('run');
     } else {
       this.setVelocityX(0);
-      this.play('boss-kaizen-idle', true);
+      this.playBossAnimation('idle');
     }
   }
 
@@ -140,7 +169,7 @@ export default class Boss extends Enemy {
     const attack = this.bossConfig.attacks.melee;
     this.startAction(attack.warningTime + 190);
     this.setVelocityX(0);
-    this.play('boss-kaizen-attack', true);
+    this.playBossAnimation('attack');
 
     const warningX = this.x + this.direction * attack.range;
     const warning = this.scene.add.rectangle(warningX, this.y, attack.width, attack.height, COLORS.bossMist, 0.25)
@@ -170,7 +199,7 @@ export default class Boss extends Enemy {
     const phaseConfig = this.getPhaseConfig();
     this.startAction(attack.warningTime + 240);
     this.setVelocityX(0);
-    this.play('boss-kaizen-attack', true);
+    this.playBossAnimation('attack');
 
     this.createCastWarning(this.x, this.y - 16, attack.warningTime);
 
@@ -203,7 +232,7 @@ export default class Boss extends Enemy {
     const attack = this.bossConfig.attacks.area;
     this.startAction(attack.warningTime + 220);
     this.setVelocityX(0);
-    this.play('boss-kaizen-attack', true);
+    this.playBossAnimation('attack');
 
     const targetX = Phaser.Math.Clamp(player.x, this.bossConfig.arena.left + 50, this.bossConfig.arena.right - 50);
     const targetY = player.y;
@@ -230,7 +259,7 @@ export default class Boss extends Enemy {
     const phaseConfig = this.getPhaseConfig();
     this.startAction(520);
     this.setVelocityX(0);
-    this.play('boss-kaizen-attack', true);
+    this.playBossAnimation('attack');
     this.createCastWarning(this.x, this.y - 26, 420);
 
     this.scene.time.delayedCall(420, () => {
@@ -241,6 +270,20 @@ export default class Boss extends Enemy {
         spawnBossMinion(this.x + side * (90 + i * 35), this.y - 10);
       }
     });
+  }
+
+  playBossAnimation(state) {
+    const animKey = `${this.config.texture}-${state}`;
+    const fallbackKey = `boss-kaizen-${state}`;
+
+    if (this.scene.anims.exists(animKey)) {
+      this.play(animKey, true);
+      return;
+    }
+
+    if (this.scene.anims.exists(fallbackKey)) {
+      this.play(fallbackKey, true);
+    }
   }
 
   startAction(duration) {
